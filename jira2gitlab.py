@@ -11,6 +11,8 @@ from io import BytesIO
 import os
 import uuid
 import urllib3
+import urllib.parse
+
 
 ################################################################
 # Global variables
@@ -290,25 +292,36 @@ def migrate_user(jira_username):
 
     if jira_username == 'jira':
         return GITLAB_USERNAME
-    jira_user = requests.get(
-        f'{JIRA_API}/user?username={jira_username}',
-        auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-        verify=VERIFY_SSL_CERTIFICATE,
-        headers={'Content-Type': 'application/json'}
-    ).json()
 
-    gl_user = requests.post(
-        f'{GITLAB_API}/users',
-        headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-        verify=VERIFY_SSL_CERTIFICATE,
-        data={
-            'admin': True, # Admin privilege is needed for a correct import, to be removed aferward
-            'email': jira_user['emailAddress'],
-            'username': jira_username,
-            'name': jira_user['displayName'],
-            'password': "changeMe"
-        }
-    ).json()
+    try:
+        jira_user = requests.get(
+            f'{JIRA_API}/user?username={jira_username}',
+            auth=HTTPBasicAuth(*JIRA_ACCOUNT),
+            verify=VERIFY_SSL_CERTIFICATE,
+            headers={'Content-Type': 'application/json'}
+        )
+        jira_user.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Unable to read {jira_username} from Jira!\n{e}")
+    jira_user = jira_user.json()
+
+    try:
+        gl_user = requests.post(
+            f'{GITLAB_API}/users',
+            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify=VERIFY_SSL_CERTIFICATE,
+            data={
+                'admin': True, # Admin privilege is needed for a correct import, to be removed aferward
+                'email': jira_user['emailAddress'],
+                'username': jira_username,
+                'name': jira_user['displayName'],
+                'password': "changeMe"
+            }
+        )
+        gl_user.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Unable to create {jira_username} in Gitlab!\n{e}")    
+    gl_user = gl_user.json()
 
     gl_users.append(gl_user)
     return jira_username
@@ -345,24 +358,15 @@ def create_gl_project(gitlab_project):
 # Migrate a project
 def migrate_project(jira_project, gitlab_project):
     # Get the project ID, create it if necessary.
-    gitlab_project_id = None
     try:
-        projects = requests.get(
-            f'{GITLAB_API}/projects',
+        project = requests.get(
+            f"{GITLAB_API}/projects/{urllib.parse.quote(gitlab_project, safe='')}",
             headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
             verify=VERIFY_SSL_CERTIFICATE
         )
-        projects.raise_for_status()
+        project.raise_for_status()
+        gitlab_project_id = project.json()['id']
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Unable to list Gitlab projects!\n{e}")
-    projects = projects.json()
-
-    for project in projects:
-        if project['path_with_namespace'] == gitlab_project:
-            gitlab_project_id = project['id']
-            break
-
-    if gitlab_project_id is None:
         gitlab_project_id = create_gl_project(gitlab_project)
 
     # Load the Gitlab project's milestone list (empty for a new import)
