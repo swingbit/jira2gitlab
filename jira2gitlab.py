@@ -1,5 +1,4 @@
-# Adapted from https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
-# Inspired to https://gist.github.com/toudi/67d775066334dc024c24
+# Improved upon https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
 
 # Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.0/
 # Gitlab API documentation: https://docs.gitlab.com/ee/api/README.html
