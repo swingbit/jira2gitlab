@@ -3,7 +3,7 @@
 `jira2gitlab` is a python script to import Jira projects into a Gitlab instance.
 
 At the time of this writing, Gitlab has a nice [Jira integration plugin](https://docs.gitlab.com/ee/integration/jira/). 
-While it works well to _connect_ Gitlab to Jira, it is not suited to completely migrate projects and issues,
+While it works well to _connect_ Gitlab to Jira, it is not suited (yet) to completely migrate projects and issues,
 and eventually shut Jira down.
 
 This script is based on and takes further previous efforts, mainly https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
