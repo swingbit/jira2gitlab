@@ -104,16 +104,6 @@ ISSUE_STATUS_MAP = {
 # Functions
 ################################################################
 
-# Get a specific Jira Issue (for debugging)
-def get_jira_issue(issue_key):
-    issue = requests.get(
-        f'{JIRA_API}/issue/{issue_key}',
-        auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-        verify=VERIFY_SSL_CERTIFICATE,
-        headers={'Content-Type': 'application/json'}
-    ).json()
-    return issue
-
 # Convert Jira tables to markdown
 def jira_table_to_markdown(text):
   lines = text.splitlines()
