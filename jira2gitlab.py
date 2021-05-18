@@ -29,7 +29,7 @@ def dict_hash(dictionary: Dict[str, Any]) -> str:
 
 # Remove unstable data from a Jira issue
 # Unstable data is data that changes even though the issue has not been changed
-def jira_remove_unstable_data(issue):
+def jira_issue_remove_unstable_data(issue):
     for field in ['lastViewed', 'customfield_10300']:
         if field in issue['fields']:
             issue['fields'][field] = ''
@@ -338,7 +338,7 @@ def migrate_project(jira_project, gitlab_project):
 
     # Import issues into Gitlab
     for issue in jira_issues:
-        jira_remove_unstable_data(issue)
+        jira_issue_remove_unstable_data(issue)
         issue_hash = dict_hash(issue)
 
         # Skip issues that were already imported and have not changed
@@ -346,7 +346,7 @@ def migrate_project(jira_project, gitlab_project):
             if issue_mapping[issue['key']][1] == issue_hash:
                 continue
             else:
-                print(f"\n[INFO] Jira issue {issue['key']} was imported the issue before, but it has changed. Deleting and re-mporting.", flush=True)
+                print(f"\n[INFO] Jira issue {issue['key']} was imported before, but it has changed. Deleting and re-importing.", flush=True)
                 requests.delete(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{issue_mapping[issue['key']][0]['iid']}",
                     headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
