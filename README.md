@@ -35,7 +35,7 @@ Tested with:
 - Jira `duplicates` link is translated to `/duplicate` quick-action
 - Jira sub-task is translated to an issue with a `blocks` link to the parent issue (only Gitlab Premium, otherwise `relates_to`)
 - Epics are currently translated to normal issues and loosely coupled via labels with their child issues
-  - TODO: traslated them into Gitlab epics (only Gitlab Premium)
+  - TODO: traslate them into Gitlab epics (only Gitlab Premium)
 - Users are created as needed, with the same name
   - WARNING: all users are created in Gitlab with admin rights, remember to reassign rights correcty after the import
   - WARNING: all users are created with password `changeMe`. You know what to do ;)
