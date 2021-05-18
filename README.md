@@ -44,7 +44,6 @@ Tested with:
 ## Usage
 - Make sure you can use an admin user on Jira
 - Create an access token with full rights on Gitlab
-- Customize `secrets.sh` script
 - Customize `jira2gitlab_config.py` and `jira2gitlab_secrets.py`
 - Create all required groups and subgroups in Gitlab, according to your project mapping.
 The script creates the projects themselves, but not the groups.
