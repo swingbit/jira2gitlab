@@ -40,6 +40,7 @@ Tested with:
   - WARNING: all users are created in Gitlab with admin rights, remember to reassign rights correcty after the import
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
+- Incremental import: it can be run multiple times, it will update issues that have changed since last import
 
 ## Usage
 - Make sure you can use an admin user on Jira
