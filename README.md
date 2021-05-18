@@ -11,7 +11,7 @@ This script is based on and takes further previous efforts, mainly https://gist.
 
 APIs used:
 - Jira [API v2](https://docs.atlassian.com/software/jira/docs/api/REST/8.5.0/) (the latest version supported on Jira Server). A password-base login with administrator rights is needed.
-- Gitlab [API v4](https://docs.gitlab.com/ee/api/README.html). A token with administration rights is needed.
+- Gitlab [API v4](https://docs.gitlab.com/ee/api/README.html). An access token with administration rights is needed.
 
 
 Tested with:
@@ -44,17 +44,10 @@ Tested with:
 ## Usage
 - Make sure you can use an admin user on Jira
 - Create an access token with full rights on Gitlab
-- Customize the `secrets.sh` script
-- Customize the `jira2gitlab.py` script with:
-  - Jira and Gitlab URLs
-  - Project mappings
-  - Label mappings
+- Customize `secrets.sh` script
+- Customize `jira2gitlab_config.py` and `jira2gitlab_secrets.py`
 - Create all required groups and subgroups in Gitlab, according to your project mapping.
 The script creates the projects themselves, but not the groups.
-- Source the secrets
-```
-source secrets.sh
-```
 - Run the script:
 ```
 python jira2gitlab.py

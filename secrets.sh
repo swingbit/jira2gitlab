@@ -1,5 +1,0 @@
-export GITLAB_TOKEN=01234567890123456789
-export GITLAB_USERNAME=root
-export GITLAB_PASSWORD=password123
-export JIRA_USERNAME=jira_admin
-export JIRA_PASSWORD=password123
