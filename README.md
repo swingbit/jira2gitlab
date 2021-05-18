@@ -38,6 +38,7 @@ Tested with:
   - TODO: traslated them into Gitlab epics (only Gitlab Premium)
 - Users are created as needed, with the same name
   - WARNING: all users are created in Gitlab with admin rights, remember to reassign rights correcty after the import
+  - WARNING: all users are created with password `changeMe`. You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
 
