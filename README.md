@@ -41,7 +41,7 @@ Tested with:
   - WARNING: all users are created with password `changeMe`. You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
-- Incremental import: it can be run multiple times, it will update issues that have changed since last import
+- Incremental import: it can be run multiple times, it will update issues that have changed since last import (provided that the `import_status.pickle` file from the previous run is available)
 
 ## Usage
 - Make sure you can use an admin user on Jira
