@@ -11,7 +11,7 @@ JIRA_STORY_POINTS_FIELD = 'customfield_10002'
 
 GITLAB_URL = 'https://gitlab.example.com'
 GITLAB_API = f'{GITLAB_URL}/api/v4'
-# Support Gitlab Premium features (e.g. epics and "bloks" issue links)
+# Support Gitlab Premium features (e.g. epics and "blocks" issue links)
 GITLAB_PREMIUM = True
 
 # set this to false if JIRA / Gitlab is using self-signed certificate.
