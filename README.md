@@ -16,7 +16,7 @@ APIs used:
 
 Tested with:
 - Jira Server 8.5.1
-- Gitlab Self-Managed 13.11.4-ee
+- Gitlab Self-Managed 14.7.0-ee
 
 ## Features:
 - Original title, extended with Jira issue key
@@ -25,6 +25,8 @@ Tested with:
 - Original labels
 - Original attachments
 - Original worklogs, as comment + `/spend` quick-action
+- Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
+(with some limitations, read instructions in config file)
 - Jira comment syntax translated to markdown, including tables
 - Jira components are translated to labels
 - Jira priority is translated to labels
@@ -46,13 +48,15 @@ Tested with:
 ## Usage
 - Make sure you can use an admin user on Jira
 - Create an access token with full rights on Gitlab
-- Customize `jira2gitlab_config.py` and `jira2gitlab_secrets.py`
+- Customize `jira2gitlab_config.py` (check carefully all the options) and `jira2gitlab_secrets.py`
 - Create all required groups and subgroups in Gitlab, according to your project mapping.
 The script creates the projects themselves, but not the groups.
 - Run the script:
 ```
 python jira2gitlab.py
 ```
+- If the script was interrupted, or if some issues were updated in Jira, you can run the script again.
+Only the differences will be imported (as long as you keep the `import_status.pickle` file)
 
 
 

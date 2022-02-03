@@ -17,7 +17,26 @@ GITLAB_PREMIUM = True
 # set this to false if JIRA / Gitlab is using self-signed certificate.
 VERIFY_SSL_CERTIFICATE = False
 
-# Project mapping from Jira to Gitlab
+# PREFIX_LABEL is used with all existing Jira labels
+PREFIX_LABEL = "jira-label::"
+# PREFIX_COMPONENT is used with existing Jira component when no match is found in ISSUE_COMPONENT_MAP
+PREFIX_COMPONENT = "jira-component::"
+# PREFIX_PRIORITY is used with existing Jira priority when no match is found in ISSUE_PRIORITY_MAP
+PREFIX_PRIORITY = "P::"
+# If MIGRATE_USERS is False, all actions performed by a non-existing Gitlab user will be performed by Administrator
+MIGRATE_USERS = True
+# Prefix issue titles with "[PROJ-123]" (Jira issue-key)
+ADD_JIRA_KEY_TO_TITLE = True
+# If REFERECE_BITBUCKET_COMMITS is enabled, tries to translate Jira issue references in Bitbucket to Gitlab issue references
+# Disable if the Jira instance does not have an active link to Bitbucket at the moment of the import
+# Disable if not needed, to increase performance (more calls are needed for each issue)
+# Limitations:
+# - Bitbucket repositories were (or will be) imported in Gitlab with the same project name (the group name can change)
+# - This feature only works if the issue project and the commit project are in the same Gitlab group
+REFERECE_BITBUCKET_COMMITS = True
+
+# Jira - Gitlab group/project mapping
+# Groups are not created. They must already exist in Gitlab.
 PROJECTS = {
     'PROJECT1': 'group1/project1',
     'PROJECT2': 'group1/project2',
@@ -26,7 +45,7 @@ PROJECTS = {
 
 # Map Jira issue types to Gitlab labels
 # Unknown issue types are mapped as generic labels
-ISSUE_TYPES_MAP = {
+ISSUE_TYPE_MAP = {
     'Bug': 'T::bug',
     'Improvement': 'T::enhancement',
     'New Feature': 'T::new feature',
@@ -37,8 +56,22 @@ ISSUE_TYPES_MAP = {
     'Sub-task': 'T::task',
 }
 
-# Map Jira issue resolutions to Gitlab labels
-# Unknown issue resolutions are mapped as generic labels
+# Map Jira components to labels
+ISSUE_COMPONENT_MAP = {
+    'Component1': 'C::component1',
+    'Component2': 'C::component2'
+}
+
+# Map Jira priorities to labels
+ISSUE_PRIORITY_MAP = {
+    'Trivial': 'P::trivial',
+    'Minor': 'P::minor',
+    'Major': 'P::major',
+    'Critical': 'P::critical',
+    'Blocker': 'P::blocker',
+}
+
+# Map Jira resolutions to labels
 ISSUE_RESOLUTION_MAP = {
     'Cannot Reproduce': 'S::can\'t reproduce',
     'Duplicate': 'S::duplicate',
@@ -50,8 +83,7 @@ ISSUE_RESOLUTION_MAP = {
 #    'Fixed': 'S::fixed',
 }
 
-# Map Jira issue statuses to Gitlab labels
-# Unknown issue statuses are mapped as generic labels
+# Map Jira statuses to labels
 ISSUE_STATUS_MAP = {
     'Approved': 'S::approved',
     'Awaiting documentation': 'S::needs doc',
