@@ -38,11 +38,13 @@ Tested with:
 - Jira sub-task is translated to an issue with a `blocks` link to the parent issue (only Gitlab Premium, otherwise `relates_to`)
 - Epics are currently translated to normal issues and loosely coupled via labels with their child issues
   - TODO: traslate them into Gitlab epics (only Gitlab Premium)
-- Users can be created automatically, with username mapping specified in the configuration
-  - All Gitlab users used/created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).
+- Users are mapped from Jira to Gitlab following an explicit mapping in the configuration
+  - Users can be created automatically in Gitlab (configurable)
+  - Users that could not be mapped / created on Gitlab are impersonated by Gitlab's Administrator, with comments about the original Jira user
+  - Users that could not be mapped / created on Gitlab are reported at the end of the import.
+  - Users used / created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).
 At the end of the import, as well as upon unexpected exit, the assigned admin rights are revoked.
 Should this last step fail for any reason, a list of admin rights to be revoked manually is reported.
-  - All Jira users that could not be mapped and/or created on Gitlab are reported at the end of the import.
   - **WARNING**: all users that are created in Gitlab are given the password `changeMe`. You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
