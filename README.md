@@ -42,7 +42,7 @@ Tested with:
   - All Gitlab users used/created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).
 At the end of the import, as well as upon unexpected exit, the assigned admin rights are revoked.
 Should this last step fail for any reason, a list of admin rights to be revoked manually is reported.
-- All Jira users that could not be mapped and/or created on Gitlab are reported at the end of the import.
+  - All Jira users that could not be mapped and/or created on Gitlab are reported at the end of the import.
   - **WARNING**: all users that are created in Gitlab are given the password `changeMe`. You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
