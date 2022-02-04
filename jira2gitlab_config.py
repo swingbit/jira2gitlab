@@ -1,32 +1,65 @@
+################################################################
+# Jira options
+################################################################
+
 JIRA_URL = 'https://jira.example.com'
 JIRA_API = f'{JIRA_URL}/rest/api/2'
+
 # How many items to request at a time from Jira (usually not more than 1000)
 JIRA_PAGINATION_SIZE=100
+
 # the Jira Epic custom field
 JIRA_EPIC_FIELD = 'customfield_10103'
+
 # the Jira Sprints custom field
 JIRA_SPRINT_FIELD = 'customfield_10340'
+
 # the Jira story points custom field
 JIRA_STORY_POINTS_FIELD = 'customfield_10002'
 
+################################################################
+# Gitlab options
+################################################################
+
 GITLAB_URL = 'https://gitlab.example.com'
 GITLAB_API = f'{GITLAB_URL}/api/v4'
+
 # Support Gitlab Premium features (e.g. epics and "blocks" issue links)
 GITLAB_PREMIUM = True
+
+################################################################
+# Import options
+################################################################
 
 # set this to false if JIRA / Gitlab is using self-signed certificate.
 VERIFY_SSL_CERTIFICATE = False
 
 # PREFIX_LABEL is used with all existing Jira labels
 PREFIX_LABEL = "jira-label::"
-# PREFIX_COMPONENT is used with existing Jira component when no match is found in ISSUE_COMPONENT_MAP
+
+# PREFIX_COMPONENT is used with existing Jira components when no match is found in ISSUE_COMPONENT_MAP
 PREFIX_COMPONENT = "jira-component::"
-# PREFIX_PRIORITY is used with existing Jira priority when no match is found in ISSUE_PRIORITY_MAP
+
+# PREFIX_PRIORITY is used with existing Jira priorities when no match is found in ISSUE_PRIORITY_MAP
 PREFIX_PRIORITY = "P::"
-# If MIGRATE_USERS is False, all actions performed by a non-existing Gitlab user will be performed by Administrator
+
+# Jira users are mapped to Gitlab users according to USER_MAP, with the following two exceptios:
+# - Jira user 'jira' is mapped to Gitlab user 'root'
+# - Jira users that are not in USER_MAP are mapped to Gitlab user 'root'
+# If MIGRATE_USERS is True, mapped Gitlab users that don't exist yet in Gitlab will be migrated automatically
+# If MIGRATE_USERS is False, all actions performed by a non-existing Gitlab user will be performed by Gitlab user 'root'
 MIGRATE_USERS = True
+
+# If (new or exisiting) Gitlab users are not made admins during the import,
+# the original timestamps of all user actions cannot be imported. Instead, the timestamp of the import will be used.
+# When this option is enabled, users are changed back to their original role after the import. 
+# If users cannot changed back to non-admin, this is reported at the end of the import.
+# This feature is recommended, but to be used with caution. Check users' status in Gitlab after the import.
+MAKE_USERS_TEMPORARILY_ADMINS = True
+
 # Prefix issue titles with "[PROJ-123]" (Jira issue-key)
 ADD_JIRA_KEY_TO_TITLE = True
+
 # If REFERECE_BITBUCKET_COMMITS is enabled, tries to translate Jira issue references in Bitbucket to Gitlab issue references
 # Disable if the Jira instance does not have an active link to Bitbucket at the moment of the import
 # Disable if not needed, to increase performance (more calls are needed for each issue)
@@ -35,12 +68,22 @@ ADD_JIRA_KEY_TO_TITLE = True
 # - This feature only works if the issue project and the commit project are in the same Gitlab group
 REFERECE_BITBUCKET_COMMITS = True
 
+################################################################
+# Import mappings
+################################################################
+
 # Jira - Gitlab group/project mapping
 # Groups are not created. They must already exist in Gitlab.
 PROJECTS = {
     'PROJECT1': 'group1/project1',
     'PROJECT2': 'group1/project2',
     'PROJECT3': 'group2/project3',
+}
+
+# Jira - Gitlab username mapping
+USER_MAP = {
+  'Bob' : 'bob',
+  'Bane' : 'jane',
 }
 
 # Map Jira issue types to Gitlab labels

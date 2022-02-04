@@ -38,9 +38,12 @@ Tested with:
 - Jira sub-task is translated to an issue with a `blocks` link to the parent issue (only Gitlab Premium, otherwise `relates_to`)
 - Epics are currently translated to normal issues and loosely coupled via labels with their child issues
   - TODO: traslate them into Gitlab epics (only Gitlab Premium)
-- Users are created as needed, with the same name
-  - WARNING: all users are created in Gitlab with admin rights, remember to reassign rights correcty after the import
-  - WARNING: all users are created with password `changeMe`. You know what to do ;)
+- Users can be created automatically, with username mapping specified in the configuration
+  - All Gitlab users used/created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).
+At the end of the import, as well as upon unexpected exit, the assigned admin rights are revoked.
+Should this last step fail for any reason, a list of admin rights to be revoked manually is reported.
+- All Jira users that could not be mapped and/or created on Gitlab are reported at the end of the import.
+  - **WARNING**: all users that are created in Gitlab are given the password `changeMe`. You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
 - Incremental import: it can be run multiple times, it will update issues that have changed since last import (provided that the `import_status.pickle` file from the previous run is available)
@@ -51,8 +54,9 @@ Tested with:
 - Customize `jira2gitlab_config.py` (check carefully all the options) and `jira2gitlab_secrets.py`
 - Create all required groups and subgroups in Gitlab, according to your project mapping.
 The script creates the projects themselves, but not the groups.
-- Run the script:
+- Install the requirements and run the script:
 ```
+pip install -r requirements
 python jira2gitlab.py
 ```
 - If the script was interrupted, or if some issues were updated in Jira, you can run the script again.

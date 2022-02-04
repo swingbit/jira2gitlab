@@ -3,6 +3,7 @@
 # Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.0/
 # Gitlab API documentation: https://docs.gitlab.com/ee/api/README.html
 
+import traceback
 import requests
 from requests.auth import HTTPBasicAuth
 import pickle
@@ -29,6 +30,10 @@ requests.adapters.DEFAULT_RETRIES = 10
 s = requests.session()
 s.keep_alive = False
 
+# Translate types that the json module cannot encode
+def json_encoder(obj):
+    if isinstance(obj, set):
+        return list(obj)
 
 # Hash a dictionary
 def dict_hash(dictionary: Dict[str, Any]) -> str:
@@ -159,8 +164,8 @@ def move_attachements(attachments, gitlab_project_id):
 
         _file = requests.get(
             attachment['content'],
-            auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-            verify=VERIFY_SSL_CERTIFICATE,
+            auth = HTTPBasicAuth(*JIRA_ACCOUNT),
+            verify = VERIFY_SSL_CERTIFICATE,
         )
         if not _file:
             print(f"[WARN] Unable to migrate attachment: {attachment['content']} ... ")
@@ -170,14 +175,14 @@ def move_attachements(attachments, gitlab_project_id):
 
         file_info = requests.post(
             f'{GITLAB_API}/projects/{gitlab_project_id}/uploads',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(author)},
-            files={
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(author)['username']},
+            files = {
                 'file': (
                     str(uuid.uuid4()),
                     _content
                 )
             },
-            verify=VERIFY_SSL_CERTIFICATE
+            verify = VERIFY_SSL_CERTIFICATE
         )
         del _content
 
@@ -203,8 +208,8 @@ def get_milestone_id(gl_milestones, gitlab_project_id, title):
     try:
         milestones = requests.get(
             f'{GITLAB_API}/projects/{gitlab_project_id}/milestones?title={title}',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE
         )
         milestones.raise_for_status()
     except requests.exceptions.RequestException as e:
@@ -218,11 +223,9 @@ def get_milestone_id(gl_milestones, gitlab_project_id, title):
         # Milestone doesn't exist in Gitlab, we create it
         milestone = requests.post(
             f'{GITLAB_API}/projects/{gitlab_project_id}/milestones',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE,
-            data={
-                'title': title
-            }
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE,
+            json = { 'title': title }
         )
         if not milestone:
             raise Exception(f"Could not add milestone {title} in Gitlab")
@@ -231,25 +234,63 @@ def get_milestone_id(gl_milestones, gitlab_project_id, title):
     gl_milestones.append(milestone)
     return milestone['id']
 
+# Change admin role of Gitlab users
+def gitlab_user_admin(user, admin):
+    # Cannot change root's admin status
+    if user['username'] == 'root':
+        return user
+
+    try:
+        gl_user = requests.put(
+            f"{GITLAB_API}/users/{user['id']}",
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE,
+            json = { 'admin': admin }
+        )
+        gl_user.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Unable change admin status of Gilab user {user['username']} to {admin}\n{e}")
+    gl_user = gl_user.json()
+    
+    if admin:
+        import_status['gl_users_made_admin'].add(gl_user['username'])
+    else:
+        import_status['gl_users_made_admin'].remove(gl_user['username'])
+    
+    return gl_user
+
 # Find or create the Gitlab user corresponding to the given Jira user
 def resolve_login(jira_username):
     if jira_username == 'jira':
-        return GITLAB_USERNAME
-    for gl_user in gl_users:
-        if gl_user['username'] == jira_username:
-            return gl_user['username']
+        return gl_users['root']
 
-    # it doesn't exist, migrate it if possible
-    if MIGRATE_USERS:
-        return migrate_user(jira_username)
+    # Mapping found
+    if jira_username in USER_MAP:
+        gl_username = USER_MAP[jira_username]
+    
+        # User exists in Gitlab
+        if gl_username in gl_users:
+            if MAKE_USERS_TEMPORARILY_ADMINS:
+                gl_user = gitlab_user_admin(gl_users[gl_username], True)
+            return gl_user
 
-    # not allowed to migrate the user, just log it and return Gitlab's admin
-    # print(f"\n[WARNING] User not found: {jira_username} ({gl_users_notfound[jira_username]} times)")
-    if (jira_username in gl_users_notfound): 
-        gl_users_notfound[jira_username] += 1
+        # User doesn't exist in Gitlab, migrate it if allowed
+        if MIGRATE_USERS:
+            return migrate_user(gl_username)
+    
+        # Not allowed to migrate the user, log it
+        if (gl_username in gl_users_not_migrated): 
+            gl_users_not_migrated[gl_username] += 1
+        else: 
+            gl_users_not_migrated[gl_username] = 1
+        return gl_users['root']
+
+    # No mapping found, log jira user
+    if (jira_username in jira_users_not_mapped): 
+        jira_users_not_mapped[jira_username] += 1
     else: 
-        gl_users_notfound[jira_username] = 1
-    return GITLAB_USERNAME
+        jira_users_not_mapped[jira_username] = 1
+    return gl_users['root']
 
 
 # Migrate a user
@@ -257,14 +298,14 @@ def migrate_user(jira_username):
     print(f"\n[INFO] Migrating user {jira_username}")
 
     if jira_username == 'jira':
-        return GITLAB_USERNAME
+        return gl_users['root']
 
     try:
         jira_user = requests.get(
             f'{JIRA_API}/user?username={jira_username}',
-            auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-            verify=VERIFY_SSL_CERTIFICATE,
-            headers={'Content-Type': 'application/json'}
+            auth = HTTPBasicAuth(*JIRA_ACCOUNT),
+            verify = VERIFY_SSL_CERTIFICATE,
+            headers = {'Content-Type': 'application/json'}
         )
         jira_user.raise_for_status()
     except requests.exceptions.RequestException as e:
@@ -274,10 +315,10 @@ def migrate_user(jira_username):
     try:
         gl_user = requests.post(
             f'{GITLAB_API}/users',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE,
-            data={
-                'admin': True, # Admin privilege is needed for a correct import, to be removed aferward
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE,
+            json = {
+                'admin': MAKE_USERS_TEMPORARILY_ADMINS,
                 'email': jira_user['emailAddress'],
                 'username': jira_username,
                 'name': jira_user['displayName'],
@@ -286,11 +327,15 @@ def migrate_user(jira_username):
         )
         gl_user.raise_for_status()
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Unable to create {jira_username} in Gitlab!\n{e}")    
+        raise Exception(f"Unable to create {jira_username} in Gitlab!\n{e}")
     gl_user = gl_user.json()
 
-    gl_users.append(gl_user)
-    return jira_username
+    if MAKE_USERS_TEMPORARILY_ADMINS:
+        import_status['gl_users_made_admin'].add(gl_user['username'])
+
+    gl_users[gl_user['username']] = gl_user
+
+    return gl_user
 
 # Create Gitlab project
 def create_gl_project(gitlab_project):
@@ -308,9 +353,9 @@ def create_gl_project(gitlab_project):
     try:
         gl_project = requests.post(
             f'{GITLAB_API}/projects',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE,
-            data={
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE,
+            json = {
                 'path': project,
                 'namespace_id': namespace_id,
                 'visibility': 'internal',
@@ -327,8 +372,8 @@ def migrate_project(jira_project, gitlab_project):
     try:
         project = requests.get(
             f"{GITLAB_API}/projects/{urllib.parse.quote(gitlab_project, safe='')}",
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE
         )
         project.raise_for_status()
         gitlab_project_id = project.json()['id']
@@ -339,8 +384,8 @@ def migrate_project(jira_project, gitlab_project):
     try:
         gl_milestones = requests.get(
             f'{GITLAB_API}/projects/{gitlab_project_id}/milestones',
-            headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-            verify=VERIFY_SSL_CERTIFICATE
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE
         )
         gl_milestones.raise_for_status()
     except requests.exceptions.RequestException as e:
@@ -356,9 +401,9 @@ def migrate_project(jira_project, gitlab_project):
         try:
             jira_issues_batch = requests.get(
                 query,
-                auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-                verify=VERIFY_SSL_CERTIFICATE,
-                headers={'Content-Type': 'application/json'}
+                auth = HTTPBasicAuth(*JIRA_ACCOUNT),
+                verify = VERIFY_SSL_CERTIFICATE,
+                headers = {'Content-Type': 'application/json'}
             )
             jira_issues_batch.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -379,15 +424,15 @@ def migrate_project(jira_project, gitlab_project):
         weight = None
 
         # Skip issues that were already imported and have not changed
-        if issue['key'] in issue_mapping:
-            if issue_mapping[issue['key']][1] == issue_hash:
+        if issue['key'] in import_status['issue_mapping']:
+            if import_status['issue_mapping'][issue['key']][1] == issue_hash:
                 continue
             else:
                 print(f"\n[INFO] #{index}/{len(jira_issues)} Jira issue {issue['key']} was imported before, but it has changed. Deleting and re-importing.", flush=True)
                 requests.delete(
-                    f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{issue_mapping[issue['key']][0]['iid']}",
-                    headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                    verify=VERIFY_SSL_CERTIFICATE,
+                    f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{import_status['issue_mapping'][issue['key']][0]['iid']}",
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                    verify = VERIFY_SSL_CERTIFICATE,
                 )
         else:
             print(f"\r[INFO] #{index}/{len(jira_issues)} Migrating Jira issue {issue['key']} ...   ", end='', flush=True)
@@ -395,13 +440,10 @@ def migrate_project(jira_project, gitlab_project):
         # Reporter
         reporter = issue['fields']['reporter']['name']
 
-        # Assignee
-        assignee = ''
+        # Assignee (can be empty)
+        assignee = None
         if issue['fields']['assignee']:
-            for user in gl_users:
-                if user['username'] == issue['fields']['assignee']['name']:
-                    assignee = user['id']
-                    break
+            assignee = resolve_login(issue['fields']['assignee']['name'])['username']
 
         # Mark all issues as imported
         labels = ["jira-import"]
@@ -445,9 +487,9 @@ def migrate_project(jira_project, gitlab_project):
         if JIRA_EPIC_FIELD in issue['fields'] and issue['fields'][JIRA_EPIC_FIELD]:
             epic_info = requests.get(
                 f"{JIRA_API}/issue/{issue['fields'][JIRA_EPIC_FIELD]}/?fields=summary",
-                auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-                verify=VERIFY_SSL_CERTIFICATE,
-                headers={'Content-Type': 'application/json'}
+                auth = HTTPBasicAuth(*JIRA_ACCOUNT),
+                verify = VERIFY_SSL_CERTIFICATE,
+                headers = {'Content-Type': 'application/json'}
             ).json()
             labels.append(epic_info['fields']['summary'])
 
@@ -477,6 +519,10 @@ def migrate_project(jira_project, gitlab_project):
         description += "\n\n___\n\n"
         description += f"**Imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']})**\n\n"
 
+        gl_reporter = resolve_login(reporter)['username']
+        if gl_reporter == 'root' and reporter != 'jira':
+            description += f"**Original creator of the issue: Jira user {reporter}**\n\n"
+
         for attachment in replacements.values():
             if not attachment in description:
                 description += f"Attachment imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']}): {attachment}\n\n"
@@ -489,10 +535,10 @@ def migrate_project(jira_project, gitlab_project):
 
             if (len(title) > 255):
                 # add full original title as a comment later on
-                original_title = f"Full original title: {title}\n\n"
+                original_title = f"Full original title:\n\n{title}\n\n"
                 title = title[:252] + '...'
 
-            data={
+            data = {
                 'created_at': issue['fields']['created'],
                 'assignee_ids': [assignee],
                 'title': title,
@@ -505,9 +551,9 @@ def migrate_project(jira_project, gitlab_project):
 
             gl_issue = requests.post(
                 f"{GITLAB_API}/projects/{gitlab_project_id}/issues",
-                headers={'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(reporter)},
-                verify=VERIFY_SSL_CERTIFICATE,
-                data=data
+                headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_reporter},
+                verify = VERIFY_SSL_CERTIFICATE,
+                json = data
             )
             gl_issue.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -517,7 +563,7 @@ def migrate_project(jira_project, gitlab_project):
 
         # Collect Jira-Gitlab ID mapping and Jira issue hash
         # to be used later for links and for incremental imports
-        issue_mapping[issue['key']] = ({
+        import_status['issue_mapping'][issue['key']] = ({
             'id': gl_issue['id'],
             'project_id': gl_issue['project_id'],
             'iid': gl_issue['iid'],
@@ -530,13 +576,18 @@ def migrate_project(jira_project, gitlab_project):
             # Add original comments
             for comment in issue['fields']['comment']['comments']:
                 author = comment['author']['name']
+                gl_author = resolve_login(author)['username']
+                notice = ""
+                if gl_author == 'root' and author != 'jira':
+                    notice = f"[ Original comment made by Jira user {author} ]\n\n"
+
                 note_add = requests.post(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
-                    headers={'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(author)},
-                    verify=VERIFY_SSL_CERTIFICATE,
-                    data={
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_author},
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    json = {
                         'created_at': comment['created'],
-                        'body': jira_text_2_gitlab_markdown(jira_project, comment['body'], replacements)
+                        'body': notice + jira_text_2_gitlab_markdown(jira_project, comment['body'], replacements)
                     }
                 )
                 note_add.raise_for_status()
@@ -546,17 +597,22 @@ def migrate_project(jira_project, gitlab_project):
                 # not all worklogs have a comment
                 worklog_comment = ""
                 if "comment" in worklog:
-                     worklog_comment = jira_text_2_gitlab_markdown(jira_project, worklog['comment'], replacements)               
+                     worklog_comment = jira_text_2_gitlab_markdown(jira_project, worklog['comment'], replacements)
                 author = worklog['author']['name']
+                gl_author = resolve_login(author)['username']
+                if gl_author == 'root' and author != 'jira':
+                    body = f"[ Worklog {worklog['timeSpent']} (Original worklog by Jira user {author}) ]\n\n"
+                else:
+                    body = f"[ Worklog {worklog['timeSpent']} ]\n\n"
+                body += worklog_comment
+                body += f"\n/spend {worklog['timeSpent']} {worklog['started'][:10]}"
                 note_add = requests.post(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
-                    headers={'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(author)},
-                    verify=VERIFY_SSL_CERTIFICATE,
-                    data={
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_author},
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    json = {
                         'created_at': worklog['started'],
-                        'body': f"(Worklog {worklog['timeSpent']})\n\n" 
-                                +  worklog_comment
-                                + f"\n/spend {worklog['timeSpent']} {worklog['started'][:10]}"
+                        'body': body
                     }
                 )
                 note_add.raise_for_status()
@@ -570,11 +626,11 @@ def migrate_project(jira_project, gitlab_project):
             if REFERECE_BITBUCKET_COMMITS:
                 devel_info = requests.get(
                     f"{JIRA_URL}/rest/dev-status/latest/issue/detail?issueId={issue['id']}&applicationType=stash&dataType=repository",
-                    auth=HTTPBasicAuth(*JIRA_ACCOUNT),
-                    verify=VERIFY_SSL_CERTIFICATE,
-                    headers={'Content-Type': 'application/json'},
-                    timeout=60 # I've seen this call hang indefinitely. Use a timeout to prevent that.
-                    )
+                    auth = HTTPBasicAuth(*JIRA_ACCOUNT),
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    headers = {'Content-Type': 'application/json'},
+                    timeout = 60 # I've seen this call hang indefinitely. Use a timeout to prevent that.
+                )
                 devel_info.raise_for_status()
                 devel_info = devel_info.json()
                 
@@ -588,9 +644,9 @@ def migrate_project(jira_project, gitlab_project):
                             body = f"{commit['author']['name']} commited {commit_reference} : {commit['message']}"
                             note_add = requests.post(
                                 f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
-                                headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                                verify=VERIFY_SSL_CERTIFICATE,
-                                data={
+                                headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                                verify = VERIFY_SSL_CERTIFICATE,
+                                json = {
                                     'created_at': commit['authorTimestamp'],
                                     'body': body
                                 }
@@ -603,9 +659,9 @@ def migrate_project(jira_project, gitlab_project):
             if issue['fields']['status']['statusCategory']['key'] == "done":
                 status = requests.put(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}",
-                    headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                    verify=VERIFY_SSL_CERTIFICATE,
-                    data={
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    json = {
                         'state_event': 'close',
                         'updated_at': issue['fields']['resolutiondate'],
                     }
@@ -616,27 +672,24 @@ def migrate_project(jira_project, gitlab_project):
             
             requests.delete(
                 f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}",
-                headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                verify=VERIFY_SSL_CERTIFICATE,
+                headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                verify = VERIFY_SSL_CERTIFICATE,
             )
             raise Exception(f"Unable to modify Gitlab issue {gl_issue['id']}. Removing issue and aborting.\n{e}")
 
         # Issue successfully imported.
-        # Write current mapping to file
-        with open('import_status.pickle', 'wb') as f:
-            # Pickle the 'data' dictionary using the highest protocol available.
-            pickle.dump(issue_mapping, f, pickle.HIGHEST_PROTOCOL)
-
+        # Write current status to file
+        store_import_status()
 def process_links(links):
     for (j_from, j_type, j_to) in links:
         print(f"\r[Info]: Processing link {j_from} {j_type} {j_to}", end='', flush=True)
 
-        if not (j_from in issue_mapping and j_to in issue_mapping):
+        if not (j_from in import_status['issue_mapping'] and j_to in import_status['issue_mapping']):
             print(f"\n[WARN]: Skipping {j_from} {j_type} {j_to}, at least one of the Gitlab issues was not imported")
             continue
         
-        gl_from = issue_mapping[j_from][0]
-        gl_to = issue_mapping[j_to][0]
+        gl_from = import_status['issue_mapping'][j_from][0]
+        gl_to = import_status['issue_mapping'][j_to][0]
 
         # Only "outward" links were collected.
         # I.e. we only need to process (a blocks b), as (b blocked by a) comes implicitly.
@@ -650,9 +703,9 @@ def process_links(links):
             try:
                 gl_link = requests.post(
                     f"{GITLAB_API}/projects/{gl_from['project_id']}/issues/{gl_from['iid']}/links",
-                    headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                    verify=VERIFY_SSL_CERTIFICATE,
-                    data={
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    json = {
                         'target_project_id': gl_to['project_id'],
                         'target_issue_iid': gl_to['iid'],
                         'link_type': gl_type,
@@ -668,9 +721,9 @@ def process_links(links):
                 try:
                     note_add = requests.post(
                         f"{GITLAB_API}/projects/{gl_from['project_id']}/issues/{gl_from['iid']}/notes",
-                        headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-                        verify=VERIFY_SSL_CERTIFICATE,
-                        data={
+                        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+                        verify = VERIFY_SSL_CERTIFICATE,
+                        json = {
                             'body': f"/duplicate {gl_to['full_ref']}"
                         }
                     )
@@ -684,6 +737,40 @@ def process_links(links):
             else:
                 print(f"\n[WARN]: Don't know what to do with link type {j_type}!")
 
+def store_import_status():
+    with open('import_status.pickle', 'wb') as f:
+        pickle.dump(import_status, f, pickle.HIGHEST_PROTOCOL)
+
+def load_import_status():
+    try:
+        with open('import_status.pickle', 'rb') as f:
+            import_status = pickle.load(f)
+    except:
+        print("[INFO]: Creating new issue mapping file")
+
+
+# Users that were made admin during the import need to be changed back
+def reset_user_privileges():
+    print('\n\nResetting user privileges..\n')
+    for gl_username in import_status['gl_users_made_admin'].copy():
+        print(f"- User {gl_users[gl_username]['username']} was made admin during the import to set the correct timestamps. Turning it back to non-admin.")
+        gitlab_user_admin(gl_users[gl_username], False)
+    assert (not import_status['gl_users_made_admin'])
+    store_import_status()
+
+def final_report():
+    if jira_users_not_mapped:
+        print("\nThe following Jira users could not be mapped to Gitlab. They have been impersonated by root (number of times):\n")
+        print(f"{json.dumps(jira_users_not_mapped, default=json_encoder, indent=4)}\n")
+
+    if gl_users_not_migrated:
+        print("\nThe following Jira users could not be found in Gitlab and could not be migrated. They have been impersonated by root (number of times)\n")
+        print(f"{json.dumps(gl_users_not_migrated, default=json_encoder, indent=4)}\n")
+
+    if import_status['gl_users_made_admin']:
+        print("An error occurred while reverting the admin status of Gitlab users.\n")
+        print("IMPORTANT: The following users should be revoked the admin status manually:\n")
+        print(f"{json.dumps(import_status['gl_users_made_admin'], default=json_encoder, indent=4)}\n")
 
 
 ################################################################
@@ -694,34 +781,44 @@ def process_links(links):
 # Get available Gitlab namespaces
 gl_namespaces = requests.get(
     f'{GITLAB_API}/namespaces',
-    headers={'PRIVATE-TOKEN': GITLAB_TOKEN},
-    verify=VERIFY_SSL_CERTIFICATE
-).json()
+    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+    verify = VERIFY_SSL_CERTIFICATE
+)
+gl_namespaces.raise_for_status()
+gl_namespaces = gl_namespaces.json()
+
+# Jira users that could not be mapped to Gitlab users
+jira_users_not_mapped = dict()
+
+# Gitlab users that were mapped to, but could not be migrated
+gl_users_not_migrated = dict()
 
 # Get available Gitlab users
-gl_users_notfound = {}
-gl_users = []
+gl_users = dict()
 page = 1
 while True:
-    rq = requests.get(f'{GITLAB_API}/users?page={str(page)}', 
-    headers={'PRIVATE-TOKEN': GITLAB_TOKEN}, verify=VERIFY_SSL_CERTIFICATE)
-    gl_users += (rq.json()) 
-    
-    if (rq.headers["x-page"] != rq.headers["x-total-pages"]):  
+    rq = requests.get(
+        f'{GITLAB_API}/users?page={str(page)}', 
+        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+        verify = VERIFY_SSL_CERTIFICATE
+    )
+    rq.raise_for_status()
+    for gl_user in rq.json():
+        gl_users[gl_user['username']] = gl_user
+
+    if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
         page = rq.headers["x-next-page"] 
     else:
         break
 
-# Load previous import status
 links = []
-issue_mapping = {}
+import_status = {
+    'issue_mapping': dict(),
+    'gl_users_made_admin' : set()
+}
 
-try:
-    with open('import_status.pickle', 'rb') as f:
-        issue_mapping = pickle.load(f)
-except:
-    print("[INFO]: Creating new issue mapping file")
-
+# Load previous import status
+load_import_status()
 
 try:
     # Migrate projects
@@ -729,17 +826,21 @@ try:
         print(f"\n\nMigrating {jira_project} to {gitlab_project}")
         migrate_project(jira_project, gitlab_project)
 
+    # Users that were made admin during the import need to be changed back
+    reset_user_privileges()
+
     # Map issue links
     print("\nProcessing links")
     process_links(links)
 
-    if not MIGRATE_USERS and gl_users_notfound:
-        print(f"\nUsers not found in GitLab: {gl_users_notfound}")
+    print("\nMigration complete successfully\n")
+    final_report()
 
-    print("\nMigration complete")
+except Exception:
+    traceback.print_exc()
+    print("\nMigration failed\n")
 
-except Exception as e:
-    if not MIGRATE_USERS and gl_users_notfound:
-        print(f"\nUsers not found in GitLab: {gl_users_notfound}")
-    print(f"{e}\n")
+    # Users that were made admin during the import need to be changed back
+    reset_user_privileges()
 
+    final_report()
