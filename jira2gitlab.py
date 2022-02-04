@@ -639,8 +639,8 @@ def migrate_project(jira_project, gitlab_project):
                         for commit in repository['commits']:
                             # referencing the commit directly should work, but it doesn't via API (https://gitlab.com/gitlab-org/gitlab/-/issues/351805)
                             # commit_reference = f"{repository['name']}@{commit['displayId']}"
-                            group = gl_issue['references']['full'].split('/')[0]
-                            commit_reference = f"[{commit['displayId']} in {repository['name']}]({GITLAB_URL}/{group}/{repository['name']}/-/commit/{commit['id']})"
+                            namespace = urllib.parse.quote(gitlab_project.rsplit('/',1)[0], safe='')
+                            commit_reference = f"[{commit['displayId']} in {repository['name']}]({GITLAB_URL}/{namespace}/{repository['name']}/-/commit/{commit['id']})"
                             body = f"{commit['author']['name']} commited {commit_reference} : {commit['message']}"
                             note_add = requests.post(
                                 f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",

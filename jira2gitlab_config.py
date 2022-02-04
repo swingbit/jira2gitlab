@@ -52,8 +52,8 @@ MIGRATE_USERS = True
 
 # If (new or exisiting) Gitlab users are not made admins during the import,
 # the original timestamps of all user actions cannot be imported. Instead, the timestamp of the import will be used.
-# When this option is enabled, users are changed back to their original role after the import. 
-# If users cannot changed back to non-admin, this is reported at the end of the import.
+# When this option is enabled, users are made admin and changed back to their original role after the import. 
+# If users cannot be changed back to non-admin, this is reported at the end of the import.
 # This feature is recommended, but to be used with caution. Check users' status in Gitlab after the import.
 MAKE_USERS_TEMPORARILY_ADMINS = True
 
@@ -64,7 +64,7 @@ ADD_JIRA_KEY_TO_TITLE = True
 # Disable if the Jira instance does not have an active link to Bitbucket at the moment of the import
 # Disable if not needed, to increase performance (more calls are needed for each issue)
 # Limitations:
-# - Bitbucket repositories were (or will be) imported in Gitlab with the same project name (the group name can change)
+# - Bitbucket repositories need to be imported in Gitlab with the same project name (the group name can change)
 # - This feature only works if the issue project and the commit project are in the same Gitlab group
 REFERECE_BITBUCKET_COMMITS = True
 
