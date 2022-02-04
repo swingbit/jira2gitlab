@@ -833,7 +833,7 @@ try:
     print("\nProcessing links")
     process_links(links)
 
-    print("\nMigration complete successfully\n")
+    print("\nMigration completed successfully\n")
     final_report()
 
 except Exception:
