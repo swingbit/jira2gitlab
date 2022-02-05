@@ -4,6 +4,7 @@
 # Gitlab API documentation: https://docs.gitlab.com/ee/api/README.html
 
 import traceback
+import signal
 import requests
 from requests.auth import HTTPBasicAuth
 import pickle
@@ -322,7 +323,7 @@ def migrate_user(jira_username):
                 'email': jira_user['emailAddress'],
                 'username': jira_username,
                 'name': jira_user['displayName'],
-                'password': "changeMe"
+                'password': NEW_GITLAB_USERS_PASSWORD
             }
         )
         gl_user.raise_for_status()
@@ -426,9 +427,10 @@ def migrate_project(jira_project, gitlab_project):
         # Skip issues that were already imported and have not changed
         if issue['key'] in import_status['issue_mapping']:
             if import_status['issue_mapping'][issue['key']][1] == issue_hash:
+                print(f"[INFO] Issue {issue['key']} found in status with the same hash: previously imported and not changed.", flush=True)
                 continue
             else:
-                print(f"\n[INFO] #{index}/{len(jira_issues)} Jira issue {issue['key']} was imported before, but it has changed. Deleting and re-importing.", flush=True)
+                print(f"[INFO] #{index}/{len(jira_issues)} Jira issue {issue['key']} was imported before, but it has changed. Deleting and re-importing.", flush=True)
                 requests.delete(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{import_status['issue_mapping'][issue['key']][0]['iid']}",
                     headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
@@ -503,12 +505,12 @@ def migrate_project(jira_project, gitlab_project):
         # I.e. we only need to process (a blocks b), as (b blocked by a) comes implicitly.
         for link in issue['fields']['issuelinks']:
             if 'outwardIssue' in link:
-                links.append( (issue['key'], link['type']['outward'], link['outwardIssue']['key']) )
+                import_status['links_todo'].add( (issue['key'], link['type']['outward'], link['outwardIssue']['key']) )
         
         # There is no sub-task equivalent in Gitlab
         # Use a (sub-task, blocks, task) link instead
         for subtask in issue['fields']['subtasks']:
-            links.append( (subtask['key'], "blocks", issue['key']) )
+            import_status['links_todo'].add( (subtask['key'], "blocks", issue['key']) )
 
         # Migrate attachments and get replacements for comments pointing at them
         replacements = move_attachements(issue['fields']['attachment'], gitlab_project_id)
@@ -680,8 +682,10 @@ def migrate_project(jira_project, gitlab_project):
         # Issue successfully imported.
         # Write current status to file
         store_import_status()
-def process_links(links):
-    for (j_from, j_type, j_to) in links:
+
+
+def process_links():
+    for (j_from, j_type, j_to) in import_status['links_todo'].copy():
         print(f"\r[Info]: Processing link {j_from} {j_type} {j_to}", end='', flush=True)
 
         if not (j_from in import_status['issue_mapping'] and j_to in import_status['issue_mapping']):
@@ -714,7 +718,8 @@ def process_links(links):
                 gl_link.raise_for_status()
             except requests.exceptions.RequestException as e:
                 print(f"Unable to create Gitlab issue link: {gl_from} {gl_type} {gl_to}\n{e}")
-
+            
+            import_status['links_todo'].remove((j_from, j_type, j_to))
         else:
             # these Jira links are treated differently in Gitlab
             if j_type == 'duplicates':
@@ -730,12 +735,15 @@ def process_links(links):
                     note_add.raise_for_status()
                 except requests.exceptions.RequestException as e:
                     print(f"[WARN] Unable to create Gitlab issue link: {gl_from} {gl_type} {gl_to}\n{e}")
+                
+                import_status['links_todo'].remove((j_from, j_type, j_to))
             elif j_type == 'clones':
                 # No need to perform the cloning, as the cloned issue is already imported.
                 # Also, cloned issues become completely independent, so there is no real need to keep trace of this.
                 pass
             else:
                 print(f"\n[WARN]: Don't know what to do with link type {j_type}!")
+
 
 def store_import_status():
     with open('import_status.pickle', 'wb') as f:
@@ -746,8 +754,19 @@ def load_import_status():
         with open('import_status.pickle', 'rb') as f:
             import_status = pickle.load(f)
     except:
-        print("[INFO]: Creating new issue mapping file")
+        print("[INFO]: Creating new import_status file")
+        import_status = {
+            'issue_mapping': dict(),
+            'gl_users_made_admin' : set(),
+            'links_todo' : set()
+        }
+    return import_status
 
+
+
+################################################################
+# Main body
+# ################################################################
 
 # Users that were made admin during the import need to be changed back
 def reset_user_privileges():
@@ -756,7 +775,6 @@ def reset_user_privileges():
         print(f"- User {gl_users[gl_username]['username']} was made admin during the import to set the correct timestamps. Turning it back to non-admin.")
         gitlab_user_admin(gl_users[gl_username], False)
     assert (not import_status['gl_users_made_admin'])
-    store_import_status()
 
 def final_report():
     if jira_users_not_mapped:
@@ -772,11 +790,32 @@ def final_report():
         print("IMPORTANT: The following users should be revoked the admin status manually:\n")
         print(f"{json.dumps(import_status['gl_users_made_admin'], default=json_encoder, indent=4)}\n")
 
+def wrapup():
+    if IMPORT_SUCCEEDED:
+        print("\n\nMigration completed successfully\n")
+    else:
+        traceback.print_exc()
+        print("\n\nMigration failed\n")
 
-################################################################
-# Main body
-# ################################################################
+    # Users that were made admin during the import need to be changed back
+    try:
+        reset_user_privileges()
+    except Exception as e:
+        print(f"\n[ERROR] Could not reset priviledges: {e}\n")
 
+    store_import_status()
+    
+    final_report()
+
+def sigint_handler(signum, frame):
+    print("\n\nMigration interrupted (SIGINT)\n")
+    wrapup()
+    exit(1)
+
+# register SIGINT handler, to catch interruptions and wrap up gracefully
+signal.signal(signal.SIGINT, sigint_handler)
+
+IMPORT_SUCCEEDED = False
 
 # Get available Gitlab namespaces
 gl_namespaces = requests.get(
@@ -811,14 +850,9 @@ while True:
     else:
         break
 
-links = []
-import_status = {
-    'issue_mapping': dict(),
-    'gl_users_made_admin' : set()
-}
 
 # Load previous import status
-load_import_status()
+import_status = load_import_status()
 
 try:
     # Migrate projects
@@ -826,21 +860,13 @@ try:
         print(f"\n\nMigrating {jira_project} to {gitlab_project}")
         migrate_project(jira_project, gitlab_project)
 
-    # Users that were made admin during the import need to be changed back
-    reset_user_privileges()
-
     # Map issue links
     print("\nProcessing links")
-    process_links(links)
+    process_links()
 
-    print("\nMigration completed successfully\n")
-    final_report()
+    IMPORT_SUCCEEDED = True
+
+    wrapup()
 
 except Exception:
-    traceback.print_exc()
-    print("\nMigration failed\n")
-
-    # Users that were made admin during the import need to be changed back
-    reset_user_privileges()
-
-    final_report()
+    wrapup()

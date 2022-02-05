@@ -50,6 +50,10 @@ PREFIX_PRIORITY = "P::"
 # If MIGRATE_USERS is False, all actions performed by a non-existing Gitlab user will be performed by Gitlab user 'root'
 MIGRATE_USERS = True
 
+# When MIGRATE_USERS is True, new users can be created in Gitlab.
+# This is the *temporary* password they get.
+NEW_GITLAB_USERS_PASSWORD = "changeMe"
+
 # If (new or exisiting) Gitlab users are not made admins during the import,
 # the original timestamps of all user actions cannot be imported. Instead, the timestamp of the import will be used.
 # When this option is enabled, users are made admin and changed back to their original role after the import. 
