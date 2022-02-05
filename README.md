@@ -16,7 +16,7 @@ APIs used:
 
 Tested with:
 - Jira Server 8.5.1
-- Gitlab Self-Managed 14.7.0-ee
+- Gitlab Self-Managed 14.7.1-ee
 
 ## Features:
 - Original title, extended with Jira issue key
@@ -45,7 +45,7 @@ Tested with:
   - Users used / created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).
 At the end of the import, as well as upon unexpected exit, the assigned admin rights are revoked.
 Should this last step fail for any reason, a list of admin rights to be revoked manually is reported.
-  - **WARNING**: all users that are created in Gitlab are given the password `changeMe`. You know what to do ;)
+  - **WARNING**: all users that are created in Gitlab are given the password `changeMe` (configurable). You know what to do ;)
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
 - Incremental import: it can be run multiple times, it will update issues that have changed since last import (provided that the `import_status.pickle` file from the previous run is available)
