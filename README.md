@@ -19,13 +19,13 @@ Tested with:
 - Gitlab Self-Managed 14.7.1-ee
 
 ## Features:
-- Original title, extended with Jira issue key
+- Original title, extended with Jira issue key ((Optional))
 - Original description, extended with link to Jira issue
 - Original comments
 - Original labels
-- Original attachments
-- Original worklogs, as comment + `/spend` quick-action
-- Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
+- (Optional) Original attachments
+- (Optional) Original worklogs, as comment + `/spend` quick-action
+- (Optional) Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
 (with some limitations, read instructions in config file)
 - Jira comment syntax translated to markdown, including tables
 - Jira components are translated to labels
@@ -39,7 +39,7 @@ Tested with:
 - Epics are currently translated to normal issues and loosely coupled via labels with their child issues
   - TODO: traslate them into Gitlab epics (only Gitlab Premium)
 - Users are mapped from Jira to Gitlab following an explicit mapping in the configuration
-  - Users can be created automatically in Gitlab (configurable)
+  - (Optional) Users can be created automatically in Gitlab
   - Users that could not be mapped / created on Gitlab are impersonated by Gitlab's Administrator, with comments about the original Jira user
   - Users that could not be mapped / created on Gitlab are reported at the end of the import.
   - Users used / created in Gitlab can be given admin rights (configurable) during the import (needed to import timestamps correctly).

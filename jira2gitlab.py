@@ -423,6 +423,7 @@ def migrate_project(jira_project, gitlab_project):
         jira_issue_remove_unstable_data(issue)
         issue_hash = dict_hash(issue)
         weight = None
+        replacements = dict()
 
         # Skip issues that were already imported and have not changed
         if issue['key'] in import_status['issue_mapping']:
@@ -513,7 +514,8 @@ def migrate_project(jira_project, gitlab_project):
             import_status['links_todo'].add( (subtask['key'], "blocks", issue['key']) )
 
         # Migrate attachments and get replacements for comments pointing at them
-        replacements = move_attachements(issue['fields']['attachment'], gitlab_project_id)
+        if MIGRATE_ATTACHMENTS:
+            replacements = move_attachements(issue['fields']['attachment'], gitlab_project_id)
 
         # Create Gitlab issue
         # Add a link to the Jira issue and mention all attachments in the description
@@ -525,9 +527,11 @@ def migrate_project(jira_project, gitlab_project):
         if gl_reporter == 'root' and reporter != 'jira':
             description += f"**Original creator of the issue: Jira user {reporter}**\n\n"
 
-        for attachment in replacements.values():
-            if not attachment in description:
-                description += f"Attachment imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']}): {attachment}\n\n"
+        if MIGRATE_ATTACHMENTS:
+            for attachment in replacements.values():
+                if not attachment in description:
+                    description += f"Attachment imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']}): {attachment}\n\n"
+
         try:
             title = ""
             if ADD_JIRA_KEY_TO_TITLE:
@@ -562,7 +566,7 @@ def migrate_project(jira_project, gitlab_project):
             print(f"data: {data} ... ")
             raise Exception(f"Unable to create Gitlab issue for Jira issue {issue['key']}\n{e}")
         gl_issue = gl_issue.json()
-
+        
         # Collect Jira-Gitlab ID mapping and Jira issue hash
         # to be used later for links and for incremental imports
         import_status['issue_mapping'][issue['key']] = ({
@@ -595,30 +599,31 @@ def migrate_project(jira_project, gitlab_project):
                 note_add.raise_for_status()
 
             # Add worklogs
-            for worklog in issue['fields']['worklog']['worklogs']:
-                # not all worklogs have a comment
-                worklog_comment = ""
-                if "comment" in worklog:
-                     worklog_comment = jira_text_2_gitlab_markdown(jira_project, worklog['comment'], replacements)
-                author = worklog['author']['name']
-                gl_author = resolve_login(author)['username']
-                if gl_author == 'root' and author != 'jira':
-                    body = f"[ Worklog {worklog['timeSpent']} (Original worklog by Jira user {author}) ]\n\n"
-                else:
-                    body = f"[ Worklog {worklog['timeSpent']} ]\n\n"
-                body += worklog_comment
-                body += f"\n/spend {worklog['timeSpent']} {worklog['started'][:10]}"
-                note_add = requests.post(
-                    f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
-                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_author},
-                    verify = VERIFY_SSL_CERTIFICATE,
-                    json = {
-                        'created_at': worklog['started'],
-                        'body': body
-                    }
-                )
-                note_add.raise_for_status()
-            
+            if MIGRATE_WORLOGS:
+                for worklog in issue['fields']['worklog']['worklogs']:
+                    # not all worklogs have a comment
+                    worklog_comment = ""
+                    if "comment" in worklog:
+                        worklog_comment = jira_text_2_gitlab_markdown(jira_project, worklog['comment'], replacements)
+                    author = worklog['author']['name']
+                    gl_author = resolve_login(author)['username']
+                    if gl_author == 'root' and author != 'jira':
+                        body = f"[ Worklog {worklog['timeSpent']} (Original worklog by Jira user {author}) ]\n\n"
+                    else:
+                        body = f"[ Worklog {worklog['timeSpent']} ]\n\n"
+                    body += worklog_comment
+                    body += f"\n/spend {worklog['timeSpent']} {worklog['started'][:10]}"
+                    note_add = requests.post(
+                        f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
+                        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_author},
+                        verify = VERIFY_SSL_CERTIFICATE,
+                        json = {
+                            'created_at': worklog['started'],
+                            'body': body
+                        }
+                    )
+                    note_add.raise_for_status()
+
             # Add comments to reference BitBucket commits
             # This assumes the following:
             # - The repository of the commit has been / will be imported from BitBucket to Jira, with the same name
@@ -770,7 +775,7 @@ def load_import_status():
 
 # Users that were made admin during the import need to be changed back
 def reset_user_privileges():
-    print('\n\nResetting user privileges..\n')
+    print('\nResetting user privileges..\n')
     for gl_username in import_status['gl_users_made_admin'].copy():
         print(f"- User {gl_users[gl_username]['username']} was made admin during the import to set the correct timestamps. Turning it back to non-admin.")
         gitlab_user_admin(gl_users[gl_username], False)
@@ -778,16 +783,16 @@ def reset_user_privileges():
 
 def final_report():
     if jira_users_not_mapped:
-        print("\nThe following Jira users could not be mapped to Gitlab. They have been impersonated by root (number of times):\n")
+        print("\nThe following Jira users could not be mapped to Gitlab. They have been impersonated by root (number of times):")
         print(f"{json.dumps(jira_users_not_mapped, default=json_encoder, indent=4)}\n")
 
     if gl_users_not_migrated:
-        print("\nThe following Jira users could not be found in Gitlab and could not be migrated. They have been impersonated by root (number of times)\n")
+        print("\nThe following Jira users could not be found in Gitlab and could not be migrated. They have been impersonated by root (number of times)")
         print(f"{json.dumps(gl_users_not_migrated, default=json_encoder, indent=4)}\n")
 
     if import_status['gl_users_made_admin']:
-        print("An error occurred while reverting the admin status of Gitlab users.\n")
-        print("IMPORTANT: The following users should be revoked the admin status manually:\n")
+        print("An error occurred while reverting the admin status of Gitlab users.")
+        print("IMPORTANT: The following users should be revoked the admin status manually:")
         print(f"{json.dumps(import_status['gl_users_made_admin'], default=json_encoder, indent=4)}\n")
 
 def wrapup():
@@ -870,3 +875,4 @@ try:
 
 except Exception:
     wrapup()
+    exit(1)

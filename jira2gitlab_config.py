@@ -43,6 +43,12 @@ PREFIX_COMPONENT = "jira-component::"
 # PREFIX_PRIORITY is used with existing Jira priorities when no match is found in ISSUE_PRIORITY_MAP
 PREFIX_PRIORITY = "P::"
 
+# Whether to migrate issue attachments
+MIGRATE_ATTACHMENTS = True
+
+# Whether to migrate worklogs as issue comment with /spend quick-action.
+MIGRATE_WORLOGS = True
+
 # Jira users are mapped to Gitlab users according to USER_MAP, with the following two exceptios:
 # - Jira user 'jira' is mapped to Gitlab user 'root'
 # - Jira users that are not in USER_MAP are mapped to Gitlab user 'root'
