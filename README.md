@@ -19,7 +19,7 @@ Tested with:
 - Gitlab Self-Managed 14.7.1-ee
 
 ## Features:
-- Original title, extended with Jira issue key ((Optional))
+- Original title, extended with Jira issue key (Optional)
 - Original description, extended with link to Jira issue
 - Original comments
 - Original labels
