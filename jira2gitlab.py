@@ -664,14 +664,14 @@ def migrate_project(jira_project, gitlab_project):
             # Close "done" issues
             # status-category can only be "new" (To Do) / "indeterminate" (In Progress) / "done" (Done) / "undefined" (Undefined)
             if issue['fields']['status']['statusCategory']['key'] == "done":
+                data = { 'state_event': 'close' }
+                if issue['fields']['resolutiondate']:
+                    data['updated_at'] = issue['fields']['resolutiondate']
                 status = requests.put(
                     f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}",
                     headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
                     verify = VERIFY_SSL_CERTIFICATE,
-                    json = {
-                        'state_event': 'close',
-                        'updated_at': issue['fields']['resolutiondate'],
-                    }
+                    json = data
                 )
                 status.raise_for_status()
         except requests.exceptions.RequestException as e:
@@ -691,7 +691,7 @@ def migrate_project(jira_project, gitlab_project):
 
 def process_links():
     for (j_from, j_type, j_to) in import_status['links_todo'].copy():
-        print(f"\r[Info]: Processing link {j_from} {j_type} {j_to}", end='', flush=True)
+        print(f"\r[Info]: Processing link {j_from} {j_type} {j_to}        ", end='', flush=True)
 
         if not (j_from in import_status['issue_mapping'] and j_to in import_status['issue_mapping']):
             print(f"\n[WARN]: Skipping {j_from} {j_type} {j_to}, at least one of the Gitlab issues was not imported")
