@@ -1,8 +1,9 @@
 # Improved upon https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
 
-# Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.0/
+# Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.1/
 # Gitlab API documentation: https://docs.gitlab.com/ee/api/README.html
 
+import sys
 import traceback
 import signal
 import requests
@@ -795,11 +796,16 @@ def final_report():
         print("IMPORTANT: The following users should be revoked the admin status manually:")
         print(f"{json.dumps(import_status['gl_users_made_admin'], default=json_encoder, indent=4)}\n")
 
+class SigIntException(Exception): 
+    pass
+
 def wrapup():
     if IMPORT_SUCCEEDED:
         print("\n\nMigration completed successfully\n")
     else:
-        traceback.print_exc()
+        (exctype,_,_) = sys.exc_info()
+        if exctype != SigIntException:
+            traceback.print_exc()
         print("\n\nMigration failed\n")
 
     # Users that were made admin during the import need to be changed back
@@ -811,11 +817,13 @@ def wrapup():
     store_import_status()
     
     final_report()
+    
+    if not IMPORT_SUCCEEDED:
+        exit(1)
 
 def sigint_handler(signum, frame):
     print("\n\nMigration interrupted (SIGINT)\n")
-    wrapup()
-    exit(1)
+    raise SigIntException
 
 # register SIGINT handler, to catch interruptions and wrap up gracefully
 signal.signal(signal.SIGINT, sigint_handler)
@@ -870,9 +878,5 @@ try:
     process_links()
 
     IMPORT_SUCCEEDED = True
-
+finally:
     wrapup()
-
-except Exception:
-    wrapup()
-    exit(1)
