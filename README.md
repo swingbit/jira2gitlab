@@ -59,7 +59,7 @@ The script creates the projects themselves, but not the groups.
 - Install the requirements and run the script:
 ```
 pip install -r requirements
-python jira2gitlab.py
+./jira2gitlab.py
 ```
 - If the script was interrupted, or if some issues were updated in Jira, you can run the script again.
 Only the differences will be imported (as long as you keep the `import_status.pickle` file)

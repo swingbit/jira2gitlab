@@ -1,3 +1,5 @@
+#!/usr/bin/python
+ 
 # Improved upon https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
 
 # Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.1/
