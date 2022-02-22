@@ -26,7 +26,6 @@ Tested with:
 - (Optional) Original attachments
 - (Optional) Original worklogs, as comment + `/spend` quick-action
 - (Optional) Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
-(with some limitations, read instructions in config file)
 - Jira comment syntax translated to markdown, including tables
 - Jira components are translated to labels
 - Jira priority is translated to labels

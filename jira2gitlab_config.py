@@ -5,6 +5,10 @@
 JIRA_URL = 'https://jira.example.com'
 JIRA_API = f'{JIRA_URL}/rest/api/2'
 
+# Bitbucket URL, if available, is only used in pattern-matching
+# to translate issue references to commits.
+BITBUCKET_URL = "https://bitbucket.example.com"
+
 # How many items to request at a time from Jira (usually not more than 1000)
 JIRA_PAGINATION_SIZE=100
 
@@ -90,6 +94,15 @@ PROJECTS = {
     'PROJECT3': 'group2/project3',
 }
 
+# Bitbucket - Jira mapping
+# *Not* used to migrate Bitbucket repos (use Gitlab's integration for that)
+# Used to map references from issues to commits in Bitbucket repos that are migrated to Gitlab
+# Make sure you use the correct casing for Bitbucket: project is case-sensitive, repository is all lower-case
+PROJECTS_BITBUCKET = {
+  'Project1/repository1': 'group1/project1',
+  'Project1/repository2': 'group1/project2',
+}
+
 # Jira - Gitlab username mapping
 USER_MAP = {
   'Bob' : 'bob',
@@ -100,7 +113,7 @@ USER_MAP = {
 # Unknown issue types are mapped as generic labels
 ISSUE_TYPE_MAP = {
     'Bug': 'T::bug',
-    'Improvement': 'T::enhancement',
+    'Improvement': 'T::improvement',
     'New Feature': 'T::new feature',
     'Spike': 'T::spike',
     'Epic': 'T::epic',

@@ -628,10 +628,7 @@ def migrate_project(jira_project, gitlab_project):
                     note_add.raise_for_status()
 
             # Add comments to reference BitBucket commits
-            # This assumes the following:
-            # - The repository of the commit has been / will be imported from BitBucket to Jira, with the same name
-            # - The issue project and the commit project in Gitlab are in the same group.
-            #   This is a strong assumption. Alternatively, a full mapping of group/project from Bitbucket to Gitlab should be provided.
+            # Only the references to repos mapped in PROJECTS_BITBUCKET are added
             # Note: this an internal call, it is not part of the public API. (https://jira.atlassian.com/browse/JSWCLOUD-16901)
             if REFERECE_BITBUCKET_COMMITS:
                 devel_info = requests.get(
@@ -647,10 +644,13 @@ def migrate_project(jira_project, gitlab_project):
                 for detail in devel_info['detail']:
                     for repository in detail['repositories']:
                         for commit in repository['commits']:
-                            # referencing the commit directly should work, but it doesn't via API (https://gitlab.com/gitlab-org/gitlab/-/issues/351805)
-                            # commit_reference = f"{repository['name']}@{commit['displayId']}"
-                            namespace = urllib.parse.quote(gitlab_project.rsplit('/',1)[0], safe='')
-                            commit_reference = f"[{commit['displayId']} in {repository['name']}]({GITLAB_URL}/{namespace}/{repository['name']}/-/commit/{commit['id']})"
+                            match = re.match(BITBUCKET_COMMIT_PATTERN, commit['url'])
+                            if match is None:
+                                continue
+                            bitbucket_ref = f"{match.group(1)}/{match.group(2)}"
+                            if bitbucket_ref not in PROJECTS_BITBUCKET:
+                                continue
+                            commit_reference = f"[{commit['displayId']} in {bitbucket_ref}]({GITLAB_URL}/{PROJECTS_BITBUCKET[bitbucket_ref]}/-/commit/{commit['id']})"
                             body = f"{commit['author']['name']} commited {commit_reference} : {commit['message']}"
                             note_add = requests.post(
                                 f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
@@ -831,6 +831,10 @@ def sigint_handler(signum, frame):
 signal.signal(signal.SIGINT, sigint_handler)
 
 IMPORT_SUCCEEDED = False
+
+BITBUCKET_COMMIT_PATTERN = ""
+if REFERECE_BITBUCKET_COMMITS and BITBUCKET_URL:
+    BITBUCKET_COMMIT_PATTERN = re.compile(fr"^{BITBUCKET_URL}.+/projects/([^/]+)/repos/([^/]+)/commits/\w+$")
 
 # Get available Gitlab namespaces
 gl_namespaces = requests.get(
