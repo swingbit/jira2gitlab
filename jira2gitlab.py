@@ -834,7 +834,7 @@ IMPORT_SUCCEEDED = False
 
 BITBUCKET_COMMIT_PATTERN = ""
 if REFERECE_BITBUCKET_COMMITS and BITBUCKET_URL:
-    BITBUCKET_COMMIT_PATTERN = re.compile(fr"^{BITBUCKET_URL}.+/projects/([^/]+)/repos/([^/]+)/commits/\w+$")
+    BITBUCKET_COMMIT_PATTERN = re.compile(fr"^{BITBUCKET_URL}/projects/([^/]+)/repos/([^/]+)/commits/\w+$")
 
 # Get available Gitlab namespaces
 gl_namespaces = requests.get(
