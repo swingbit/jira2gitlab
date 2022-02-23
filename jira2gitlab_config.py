@@ -97,10 +97,10 @@ PROJECTS = {
 # Bitbucket - Jira mapping
 # *Not* used to migrate Bitbucket repos (use Gitlab's integration for that)
 # Used to map references from issues to commits in Bitbucket repos that are migrated to Gitlab
-# Make sure you use the correct casing for Bitbucket: project is case-sensitive, repository is all lower-case
+# Make sure you use the correct casing for Bitbucket: project key is all upper-case, repository is all lower-case
 PROJECTS_BITBUCKET = {
-  'Project1/repository1': 'group1/project1',
-  'Project1/repository2': 'group1/project2',
+  'PROJ1/repository1': 'group1/project1',
+  'PROJ2/repository2': 'group1/project2',
 }
 
 # Jira - Gitlab username mapping

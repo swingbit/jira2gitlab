@@ -103,9 +103,11 @@ def jira_text_2_gitlab_markdown(jira_project, text, adict):
     # Tables
     t = jira_table_to_markdown(t)
 
+    # Sections and links
     t = re.sub(r'(\r?\n){1}', r'  \1', t) # line breaks
-    t = re.sub(r'\{code:([a-z]+)\}\s*', r'\n```\1\n', t) # Block code
-    t = re.sub(r'\{code\}\s*', r'\n```\n', t) # Block code
+    t = re.sub(r'\{code\}\s*', r'\n```\n', t) # Block code (simple)
+    t = re.sub(r'\{code:(\w+)(?:\|\w+=[\w.\-]+)*\}\s*', r'\n```\1\n', t) # Block code (with language and properties)
+    t = re.sub(r'\{code:[^}]*\}\s*', r'\n```\n', t) # Block code (catch-all, bailout to simple)
     t = re.sub(r'\n\s*bq\. (.*)\n', r'\n> \1\n', t) # Block quote
     t = re.sub(r'\{quote\}', r'\n>>>\n', t) # Block quote #2
     t = re.sub(r'\{color:[\#\w]+\}(.*)\{color\}', r'> **\1**', t) # Colors
