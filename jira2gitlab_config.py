@@ -42,7 +42,8 @@ VERIFY_SSL_CERTIFICATE = False
 PREFIX_LABEL = "jira-label::"
 
 # PREFIX_COMPONENT is used with existing Jira components when no match is found in ISSUE_COMPONENT_MAP
-PREFIX_COMPONENT = "jira-component::"
+# NOTE: better NOT to use a prefix for components, otherwise only 1 component will be imported in Gitlab
+PREFIX_COMPONENT = ""
 
 # PREFIX_PRIORITY is used with existing Jira priorities when no match is found in ISSUE_PRIORITY_MAP
 PREFIX_PRIORITY = "P::"
@@ -58,7 +59,7 @@ MIGRATE_WORLOGS = True
 # - Jira users that are not in USER_MAP are mapped to Gitlab user 'root'
 # If MIGRATE_USERS is True, mapped Gitlab users that don't exist yet in Gitlab will be migrated automatically
 # If MIGRATE_USERS is False, all actions performed by a non-existing Gitlab user will be performed by Gitlab user 'root'
-MIGRATE_USERS = True
+MIGRATE_USERS = False
 
 # When MIGRATE_USERS is True, new users can be created in Gitlab.
 # This is the *temporary* password they get.
@@ -94,7 +95,7 @@ PROJECTS = {
     'PROJECT3': 'group2/project3',
 }
 
-# Bitbucket - Jira mapping
+# Bitbucket - Gitlab mapping
 # *Not* used to migrate Bitbucket repos (use Gitlab's integration for that)
 # Used to map references from issues to commits in Bitbucket repos that are migrated to Gitlab
 # Make sure you use the correct casing for Bitbucket: project key is all upper-case, repository is all lower-case
@@ -123,16 +124,17 @@ ISSUE_TYPE_MAP = {
 }
 
 # Map Jira components to labels
+# NOTE: better NOT to use a prefix for components, otherwise only 1 component will be imported in Gitlab
 ISSUE_COMPONENT_MAP = {
-    'Component1': 'C::component1',
-    'Component2': 'C::component2'
+    'Component1': 'component1',
+    'Component2': 'component2'
 }
 
 # Map Jira priorities to labels
 ISSUE_PRIORITY_MAP = {
     'Trivial': 'P::trivial',
     'Minor': 'P::minor',
-    'Major': 'P::major',
+    'Major': 'P::normal',
     'Critical': 'P::critical',
     'Blocker': 'P::blocker',
 }
@@ -166,4 +168,9 @@ ISSUE_STATUS_MAP = {
     # 'Reopened': '',
     # 'Resolved': '',
     # 'Selected for Development': '',
+}
+
+# These Jira statuses will cause the corresponding Gitlab issue to be closed
+ISSUE_STATUS_CLOSED = {
+  'Awaiting documentation',
 }

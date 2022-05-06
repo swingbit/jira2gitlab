@@ -668,7 +668,7 @@ def migrate_project(jira_project, gitlab_project):
 
             # Close "done" issues
             # status-category can only be "new" (To Do) / "indeterminate" (In Progress) / "done" (Done) / "undefined" (Undefined)
-            if issue['fields']['status']['statusCategory']['key'] == "done":
+            if issue['fields']['status']['statusCategory']['key'] == "done" or issue['fields']['status']['name'] in ISSUE_STATUS_CLOSED:
                 data = { 'state_event': 'close' }
                 if issue['fields']['resolutiondate']:
                     data['updated_at'] = issue['fields']['resolutiondate']

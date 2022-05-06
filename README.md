@@ -16,7 +16,7 @@ APIs used:
 
 Tested with:
 - Jira Server 8.5.1
-- Gitlab Self-Managed 14.8.0-ee
+- Gitlab Self-Managed 14.10.2-ee
 
 ## Features:
 - Original title, extended with Jira issue key (Optional)
