@@ -443,7 +443,9 @@ def migrate_project(jira_project, gitlab_project):
             print(f"\r[INFO] #{index}/{len(jira_issues)} Migrating Jira issue {issue['key']} ...   ", end='', flush=True)
 
         # Reporter
-        reporter = issue['fields']['reporter']['name']
+        reporter = 'jira' # if no reporter is available, use root
+        if 'reporter' in issue['fields'] and 'name' in issue['fields']['reporter']:
+            reporter = issue['fields']['reporter']['name']
 
         # Assignee (can be empty)
         gl_assignee = None
