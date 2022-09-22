@@ -39,7 +39,7 @@ GITLAB_PREMIUM = True
 VERIFY_SSL_CERTIFICATE = False
 
 # PREFIX_LABEL is used with all existing Jira labels
-PREFIX_LABEL = "jira-label::"
+PREFIX_LABEL = ""
 
 # PREFIX_COMPONENT is used with existing Jira components when no match is found in ISSUE_COMPONENT_MAP
 # NOTE: better NOT to use a prefix for components, otherwise only 1 component will be imported in Gitlab

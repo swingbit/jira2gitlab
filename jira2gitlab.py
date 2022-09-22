@@ -282,7 +282,7 @@ def resolve_login(jira_username):
 
         # User doesn't exist in Gitlab, migrate it if allowed
         if MIGRATE_USERS:
-            return migrate_user(gl_username)
+            return migrate_user(jira_username)
     
         # Not allowed to migrate the user, log it
         if (gl_username in gl_users_not_migrated): 
@@ -348,12 +348,9 @@ def create_gl_project(gitlab_project):
     print(f"\n[INFO] Creating Gitlab project {gitlab_project}")
 
     [ namespace, project ] = gitlab_project.rsplit('/',1)
-    namespace_id = None
-    for gl_ns in gl_namespaces:
-        if gl_ns['full_path'] == namespace:
-            namespace_id = gl_ns['id']
-            break
-    if namespace_id is None:
+    if namespace in gl_namespaces:
+        namespace_id = gl_namespaces[namespace]['id']
+    else:
         raise Exception(f'Could not find namespace {namespace} in Gitlab!')
 
     try:
@@ -449,43 +446,43 @@ def migrate_project(jira_project, gitlab_project):
         reporter = issue['fields']['reporter']['name']
 
         # Assignee (can be empty)
-        assignee = None
+        gl_assignee = None
         if issue['fields']['assignee']:
-            assignee = resolve_login(issue['fields']['assignee']['name'])['username']
+            gl_assignee = [resolve_login(issue['fields']['assignee']['name'])['id']]
 
         # Mark all issues as imported
-        labels = ["jira-import"]
+        gl_labels = ["jira-import"]
 
         # Migrate existing labels
-        labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
+        gl_labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
 
         # Issue type to label
         if issue['fields']['issuetype']['name'] in ISSUE_TYPE_MAP:
-            labels.append(ISSUE_TYPE_MAP[issue['fields']['issuetype']['name']])
+            gl_labels.append(ISSUE_TYPE_MAP[issue['fields']['issuetype']['name']])
         else:
             print(f"\n[WARN] Jira issue type {issue['fields']['issuetype']['name']} not mapped. Importing as generic label.", flush=True)
-            labels.append(issue['fields']['issuetype']['name'].lower())
+            gl_labels.append(issue['fields']['issuetype']['name'].lower())
 
         # Priority to label
         if issue['fields']['priority'] and issue['fields']['priority']['name'] in ISSUE_PRIORITY_MAP:
-            labels.append(ISSUE_PRIORITY_MAP[issue['fields']['priority']['name']])
+            gl_labels.append(ISSUE_PRIORITY_MAP[issue['fields']['priority']['name']])
         else:
-            labels.append(PREFIX_PRIORITY + issue['fields']['priority']['name'].lower())
+            gl_labels.append(PREFIX_PRIORITY + issue['fields']['priority']['name'].lower())
 
         # Issue components to labels
         for component in issue['fields']['components']:
             if component['name'] in ISSUE_COMPONENT_MAP:
-                labels.append(ISSUE_COMPONENT_MAP[component['name']])
+                gl_labels.append(ISSUE_COMPONENT_MAP[component['name']])
             else:
-                labels.append(PREFIX_COMPONENT + component['name'].lower())
+                gl_labels.append(PREFIX_COMPONENT + component['name'].lower())
 
         # issue status to label
         if issue['fields']['status'] and issue['fields']['status']['name'] in ISSUE_STATUS_MAP:
-            labels.append(ISSUE_STATUS_MAP[issue['fields']['status']['name']])
+            gl_labels.append(ISSUE_STATUS_MAP[issue['fields']['status']['name']])
 
         # Resolution is also mapped into a status
         if issue['fields']['resolution'] and issue['fields']['resolution']['name'] in ISSUE_RESOLUTION_MAP:
-            labels.append(ISSUE_RESOLUTION_MAP[issue['fields']['resolution']['name']])
+            gl_labels.append(ISSUE_RESOLUTION_MAP[issue['fields']['resolution']['name']])
 
         # storypoints / weight
         if JIRA_STORY_POINTS_FIELD in issue['fields'] and issue['fields'][JIRA_STORY_POINTS_FIELD]:
@@ -499,12 +496,12 @@ def migrate_project(jira_project, gitlab_project):
                 verify = VERIFY_SSL_CERTIFICATE,
                 headers = {'Content-Type': 'application/json'}
             ).json()
-            labels.append(epic_info['fields']['summary'])
+            gl_labels.append(epic_info['fields']['summary'])
 
         # Last fix versions to milestone
-        milestone_id = None
+        gl_milestone_id = None
         for fixVersion in issue['fields']['fixVersions']:
-            milestone_id = get_milestone_id(gl_milestones, gitlab_project_id, fixVersion['name'])
+            gl_milestone_id = get_milestone_id(gl_milestones, gitlab_project_id, fixVersion['name'])
 
         # Collect issue links, to be processed after all Gitlab issues are created
         # Only "outward" links were collected.
@@ -524,38 +521,38 @@ def migrate_project(jira_project, gitlab_project):
 
         # Create Gitlab issue
         # Add a link to the Jira issue and mention all attachments in the description
-        description = jira_text_2_gitlab_markdown(jira_project, issue['fields']['description'], replacements)
-        description += "\n\n___\n\n"
-        description += f"**Imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']})**\n\n"
+        gl_description = jira_text_2_gitlab_markdown(jira_project, issue['fields']['description'], replacements)
+        gl_description += "\n\n___\n\n"
+        gl_description += f"**Imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']})**\n\n"
 
         gl_reporter = resolve_login(reporter)['username']
         if gl_reporter == 'root' and reporter != 'jira':
-            description += f"**Original creator of the issue: Jira user {reporter}**\n\n"
+            gl_description += f"**Original creator of the issue: Jira user {reporter}**\n\n"
 
         if MIGRATE_ATTACHMENTS:
             for attachment in replacements.values():
-                if not attachment in description:
-                    description += f"Attachment imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']}): {attachment}\n\n"
+                if not attachment in gl_description:
+                    gl_description += f"Attachment imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']}): {attachment}\n\n"
 
         try:
-            title = ""
+            gl_title = ""
             if ADD_JIRA_KEY_TO_TITLE:
-                title = f"[{issue['key']}] "
-            title += f"{issue['fields']['summary']}"
+                gl_title = f"[{issue['key']}] "
+            gl_title += f"{issue['fields']['summary']}"
             original_title = ""
 
-            if (len(title) > 255):
+            if (len(gl_title) > 255):
                 # add full original title as a comment later on
-                original_title = f"Full original title:\n\n{title}\n\n"
-                title = title[:252] + '...'
+                original_title = f"Full original title:\n\n{gl_title}\n\n"
+                gl_title = gl_title[:252] + '...'
 
             data = {
                 'created_at': issue['fields']['created'],
-                'assignee_ids': [assignee],
-                'title': title,
-                'description': original_title + description,
-                'milestone_id': milestone_id,
-                'labels': ", ".join(labels),
+                'assignee_ids': gl_assignee,
+                'title': gl_title,
+                'description': original_title + gl_description,
+                'milestone_id': gl_milestone_id,
+                'labels': ", ".join(gl_labels),
             }
             if weight is not None:
                 data['weight'] = weight
@@ -839,19 +836,21 @@ if REFERECE_BITBUCKET_COMMITS and BITBUCKET_URL:
     BITBUCKET_COMMIT_PATTERN = re.compile(fr"^{BITBUCKET_URL}/projects/([^/]+)/repos/([^/]+)/commits/\w+$")
 
 # Get available Gitlab namespaces
-gl_namespaces = requests.get(
-    f'{GITLAB_API}/namespaces',
-    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
-    verify = VERIFY_SSL_CERTIFICATE
-)
-gl_namespaces.raise_for_status()
-gl_namespaces = gl_namespaces.json()
-
-# Jira users that could not be mapped to Gitlab users
-jira_users_not_mapped = dict()
-
-# Gitlab users that were mapped to, but could not be migrated
-gl_users_not_migrated = dict()
+gl_namespaces = dict()
+page = 1
+while True:
+    rq = requests.get(
+        f'{GITLAB_API}/namespaces?page={str(page)}',
+        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+        verify = VERIFY_SSL_CERTIFICATE
+    )
+    rq.raise_for_status()
+    for gl_namespace in rq.json():
+        gl_namespaces[gl_namespace['full_path']] = gl_namespace
+    if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
+        page = rq.headers["x-next-page"] 
+    else:
+        break
 
 # Get available Gitlab users
 gl_users = dict()
@@ -865,12 +864,15 @@ while True:
     rq.raise_for_status()
     for gl_user in rq.json():
         gl_users[gl_user['username']] = gl_user
-
     if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
         page = rq.headers["x-next-page"] 
     else:
         break
 
+# Jira users that could not be mapped to Gitlab users
+jira_users_not_mapped = dict()
+# Gitlab users that were mapped to, but could not be migrated
+gl_users_not_migrated = dict()
 
 # Load previous import status
 import_status = load_import_status()
