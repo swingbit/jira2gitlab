@@ -243,7 +243,7 @@ def get_milestone_id(gl_milestones, gitlab_project_id, title):
 # Change admin role of Gitlab users
 def gitlab_user_admin(user, admin):
     # Cannot change root's admin status
-    if user['username'] == 'root':
+    if user['username'] == GITLAB_ADMIN:
         return user
 
     try:
@@ -268,7 +268,7 @@ def gitlab_user_admin(user, admin):
 # Find or create the Gitlab user corresponding to the given Jira user
 def resolve_login(jira_username):
     if jira_username == 'jira':
-        return gl_users['root']
+        return gl_users[GITLAB_ADMIN]
 
     # Mapping found
     if jira_username in USER_MAP:
@@ -289,14 +289,14 @@ def resolve_login(jira_username):
             gl_users_not_migrated[gl_username] += 1
         else: 
             gl_users_not_migrated[gl_username] = 1
-        return gl_users['root']
+        return gl_users[GITLAB_ADMIN]
 
     # No mapping found, log jira user
     if (jira_username in jira_users_not_mapped): 
         jira_users_not_mapped[jira_username] += 1
     else: 
         jira_users_not_mapped[jira_username] = 1
-    return gl_users['root']
+    return gl_users[GITLAB_ADMIN]
 
 
 # Migrate a user
@@ -304,7 +304,7 @@ def migrate_user(jira_username):
     print(f"\n[INFO] Migrating user {jira_username}")
 
     if jira_username == 'jira':
-        return gl_users['root']
+        return gl_users[GITLAB_ADMIN]
 
     try:
         jira_user = requests.get(
@@ -526,7 +526,7 @@ def migrate_project(jira_project, gitlab_project):
         gl_description += f"**Imported from Jira issue [{issue['key']}]({JIRA_URL}/browse/{issue['key']})**\n\n"
 
         gl_reporter = resolve_login(reporter)['username']
-        if gl_reporter == 'root' and reporter != 'jira':
+        if gl_reporter == GITLAB_ADMIN and reporter != 'jira':
             gl_description += f"**Original creator of the issue: Jira user {reporter}**\n\n"
 
         if MIGRATE_ATTACHMENTS:
@@ -586,7 +586,7 @@ def migrate_project(jira_project, gitlab_project):
                 author = comment['author']['name']
                 gl_author = resolve_login(author)['username']
                 notice = ""
-                if gl_author == 'root' and author != 'jira':
+                if gl_author == GITLAB_ADMIN and author != 'jira':
                     notice = f"[ Original comment made by Jira user {author} ]\n\n"
 
                 note_add = requests.post(
@@ -609,7 +609,7 @@ def migrate_project(jira_project, gitlab_project):
                         worklog_comment = jira_text_2_gitlab_markdown(jira_project, worklog['comment'], replacements)
                     author = worklog['author']['name']
                     gl_author = resolve_login(author)['username']
-                    if gl_author == 'root' and author != 'jira':
+                    if gl_author == GITLAB_ADMIN and author != 'jira':
                         body = f"[ Worklog {worklog['timeSpent']} (Original worklog by Jira user {author}) ]\n\n"
                     else:
                         body = f"[ Worklog {worklog['timeSpent']} ]\n\n"
@@ -785,11 +785,11 @@ def reset_user_privileges():
 
 def final_report():
     if jira_users_not_mapped:
-        print("\nThe following Jira users could not be mapped to Gitlab. They have been impersonated by root (number of times):")
+        print(f"\nThe following Jira users could not be mapped to Gitlab. They have been impersonated by {GITLAB_ADMIN} (number of times):")
         print(f"{json.dumps(jira_users_not_mapped, default=json_encoder, indent=4)}\n")
 
     if gl_users_not_migrated:
-        print("\nThe following Jira users could not be found in Gitlab and could not be migrated. They have been impersonated by root (number of times)")
+        print(f"\nThe following Jira users could not be found in Gitlab and could not be migrated. They have been impersonated by {GITLAB_ADMIN} (number of times)")
         print(f"{json.dumps(gl_users_not_migrated, default=json_encoder, indent=4)}\n")
 
     if import_status['gl_users_made_admin']:
