@@ -246,6 +246,10 @@ def gitlab_user_admin(user, admin):
     if user['username'] == GITLAB_ADMIN:
         return user
 
+    if user['is_admin'] == admin:
+        # nothing to change
+        return user
+
     try:
         gl_user = requests.put(
             f"{GITLAB_API}/users/{user['id']}",
@@ -257,7 +261,10 @@ def gitlab_user_admin(user, admin):
     except requests.exceptions.RequestException as e:
         raise Exception(f"Unable change admin status of Gilab user {user['username']} to {admin}\n{e}")
     gl_user = gl_user.json()
-    
+
+    # update the user in the global list
+    gl_users['username'] = gl_user
+
     if admin:
         import_status['gl_users_made_admin'].add(gl_user['username'])
     else:
@@ -276,7 +283,7 @@ def resolve_login(jira_username):
     
         # User exists in Gitlab
         if gl_username in gl_users:
-            if MAKE_USERS_TEMPORARILY_ADMINS and not gl_users[gl_username]['is_admin']:
+            if MAKE_USERS_TEMPORARILY_ADMINS:
                 gl_user = gitlab_user_admin(gl_users[gl_username], True)
             return gl_user
 
@@ -292,7 +299,7 @@ def resolve_login(jira_username):
         return gl_users[GITLAB_ADMIN]
 
     # No mapping found, log jira user
-    if (jira_username in jira_users_not_mapped): 
+    if jira_username in jira_users_not_mapped: 
         jira_users_not_mapped[jira_username] += 1
     else: 
         jira_users_not_mapped[jira_username] = 1
