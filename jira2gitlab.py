@@ -276,6 +276,7 @@ def resolve_login(jira_username):
     
         # User exists in Gitlab
         if gl_username in gl_users:
+            gl_user = gl_users[gl_username]
             if MAKE_USERS_TEMPORARILY_ADMINS and not gl_users[gl_username]['is_admin']:
                 gl_user = gitlab_user_admin(gl_users[gl_username], True)
             return gl_user
