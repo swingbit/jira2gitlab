@@ -57,7 +57,7 @@ Should this last step fail for any reason, a list of admin rights to be revoked 
 The script creates the projects themselves, but not the groups.
 - Install the requirements and run the script:
 ```
-pip install -r requirements
+pip install -r requirements.txt
 ./jira2gitlab.py
 ```
 - If the script was interrupted, or if some issues were updated in Jira, you can run the script again.
