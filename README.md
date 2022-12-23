@@ -53,6 +53,7 @@ Should this last step fail for any reason, a list of admin rights to be revoked 
 - Make sure you can use an admin user on Jira
 - Create an access token with full rights on Gitlab
 - Customize `jira2gitlab_config.py` (check carefully all the options) and `jira2gitlab_secrets.py`
+- In order to create a user mapping it might be useful to have a pariticipant list of each project, i.e. the list of users that created, assigned, and/or commented on an issue. You can use a helper script `jira-user-list.py` for that
 - Create all required groups and subgroups in Gitlab, according to your project mapping.
 The script creates the projects themselves, but not the groups.
 - Install the requirements and run the script:
@@ -62,7 +63,4 @@ pip install -r requirements
 ```
 - If the script was interrupted, or if some issues were updated in Jira, you can run the script again.
 Only the differences will be imported (as long as you keep the `import_status.pickle` file)
-
-
-
 
