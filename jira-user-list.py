@@ -62,6 +62,10 @@ def project_users(jira_project):
             reporter = issue['fields']['reporter']['name']
             jira_users.add(reporter)
 
+        # Assignee (can be empty)
+        if issue['fields']['assignee']:
+            jira_users.add(issue['fields']['assignee']['name'])
+
         for comment in issue['fields']['comment']['comments']:
             author = comment['author']['name']
             jira_users.add(author)
