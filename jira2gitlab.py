@@ -603,6 +603,27 @@ def migrate_project(jira_project, gitlab_project):
                 )
                 note_add.raise_for_status()
 
+            # migrate custom fields
+            custom_fields_comment = ''
+            for key, desc in JIRA_CUSTOM_FIELDS.items():
+                if issue['fields'][key]:
+                    field_value = str(issue['fields'][key]).replace('\n', "<br>")
+                    custom_fields_comment += f'| {desc} | {field_value} |\n'
+
+            if custom_fields_comment:
+                table_header = "| Additional metadata | Content |\n"
+                table_header += "| - | - |\n"
+                gl_author = GITLAB_ADMIN
+                note_add = requests.post(
+                    f"{GITLAB_API}/projects/{gitlab_project_id}/issues/{gl_issue['iid']}/notes",
+                    headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': gl_author},
+                    verify = VERIFY_SSL_CERTIFICATE,
+                    json = {
+                        'body': table_header + custom_fields_comment
+                    }
+                )
+                note_add.raise_for_status()
+
             # Add worklogs
             if MIGRATE_WORLOGS:
                 for worklog in issue['fields']['worklog']['worklogs']:
