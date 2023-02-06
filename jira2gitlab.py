@@ -447,7 +447,9 @@ def migrate_project(jira_project, gitlab_project):
 
         # Reporter
         reporter = 'jira' # if no reporter is available, use root
-        if 'reporter' in issue['fields'] and 'name' in issue['fields']['reporter']:
+        if ('reporter' in issue['fields'] and
+             issue['fields']['reporter'] and
+            'name' in issue['fields']['reporter']):
             reporter = issue['fields']['reporter']['name']
 
         # Assignee (can be empty)
