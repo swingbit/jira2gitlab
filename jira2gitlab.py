@@ -457,7 +457,8 @@ def migrate_project(jira_project, gitlab_project):
         gl_labels = ["jira-import"]
 
         # Migrate existing labels
-        gl_labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
+        if 'labels' in issue['fields']:
+            gl_labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
 
         # Issue type to label
         if issue['fields']['issuetype']['name'] in ISSUE_TYPE_MAP:
