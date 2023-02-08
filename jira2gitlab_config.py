@@ -21,6 +21,12 @@ JIRA_SPRINT_FIELD = 'customfield_10340'
 # the Jira story points custom field
 JIRA_STORY_POINTS_FIELD = 'customfield_10002'
 
+# Custom JIRA fields
+JIRA_CUSTOM_FIELDS = {
+    'customfield_14200': 'Metadata 1',
+    'customfield_14201': 'Metadata 2',
+}
+
 ################################################################
 # Gitlab options
 ################################################################
