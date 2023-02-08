@@ -166,7 +166,9 @@ def jira_text_2_gitlab_markdown(jira_project, text, adict):
 def move_attachements(attachments, gitlab_project_id):
     replacements = {}
     for attachment in attachments:
-        author = attachment['author']['name']
+        author = 'jira' # if user is not valid, use root
+        if 'author' in attachment:
+            author = attachment['author']['name']
 
         _file = requests.get(
             attachment['content'],
