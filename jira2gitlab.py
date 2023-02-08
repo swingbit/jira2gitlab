@@ -166,7 +166,9 @@ def jira_text_2_gitlab_markdown(jira_project, text, adict):
 def move_attachements(attachments, gitlab_project_id):
     replacements = {}
     for attachment in attachments:
-        author = attachment['author']['name']
+        author = 'jira' # if user is not valid, use root
+        if 'author' in attachment:
+            author = attachment['author']['name']
 
         _file = requests.get(
             attachment['content'],
@@ -445,7 +447,9 @@ def migrate_project(jira_project, gitlab_project):
 
         # Reporter
         reporter = 'jira' # if no reporter is available, use root
-        if 'reporter' in issue['fields'] and 'name' in issue['fields']['reporter']:
+        if ('reporter' in issue['fields'] and
+             issue['fields']['reporter'] and
+            'name' in issue['fields']['reporter']):
             reporter = issue['fields']['reporter']['name']
 
         # Assignee (can be empty)
@@ -457,7 +461,8 @@ def migrate_project(jira_project, gitlab_project):
         gl_labels = ["jira-import"]
 
         # Migrate existing labels
-        gl_labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
+        if 'labels' in issue['fields']:
+            gl_labels.extend([PREFIX_LABEL + sub for sub in issue['fields']['labels']])
 
         # Issue type to label
         if issue['fields']['issuetype']['name'] in ISSUE_TYPE_MAP:
@@ -467,10 +472,11 @@ def migrate_project(jira_project, gitlab_project):
             gl_labels.append(issue['fields']['issuetype']['name'].lower())
 
         # Priority to label
-        if issue['fields']['priority'] and issue['fields']['priority']['name'] in ISSUE_PRIORITY_MAP:
-            gl_labels.append(ISSUE_PRIORITY_MAP[issue['fields']['priority']['name']])
-        else:
-            gl_labels.append(PREFIX_PRIORITY + issue['fields']['priority']['name'].lower())
+        if 'priority' in issue['fields']:
+            if issue['fields']['priority'] and issue['fields']['priority']['name'] in ISSUE_PRIORITY_MAP:
+                gl_labels.append(ISSUE_PRIORITY_MAP[issue['fields']['priority']['name']])
+            else:
+                gl_labels.append(PREFIX_PRIORITY + issue['fields']['priority']['name'].lower())
 
         # Issue components to labels
         for component in issue['fields']['components']:
