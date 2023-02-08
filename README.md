@@ -26,6 +26,7 @@ Tested with:
 - (Optional) Original attachments
 - (Optional) Original worklogs, as comment + `/spend` quick-action
 - (Optional) Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
+- (Optional) Jira projects may have custom fields configured. At the moment of writing (2023/02/08) there's a [long-running feature request](https://gitlab.com/gitlab-org/gitlab/-/issues/1906) for this functionality on Gitlab, but it hasn't been implemented. You can configure to perform a simple import of this kind of metadata to gitlab issue in a form of a comment with a table that lists all this info. Only simple string data conversion is done in this case
 - Jira comment syntax translated to markdown, including tables
 - Jira components are translated to labels
 - Jira priority is translated to labels
@@ -48,7 +49,7 @@ Should this last step fail for any reason, a list of admin rights to be revoked 
 - Multi-project import (projects are created automatically, but not groups)
 - Interrupted imports can be continued
 - Incremental import: it can be run multiple times, it will update issues that have changed since last import (provided that the `import_status.pickle` file from the previous run is available)
-- (Optional) Jira projects may have custom fields configured. At the moment of writing (2023/02/08) there's a [long-running feature request](https://gitlab.com/gitlab-org/gitlab/-/issues/1906) for this functionality on Gitlab, but it hasn't been implemented. You can configure to perform a simple import of this kind of metadata to gitlab issue in a form of a comment with a table that lists all this info. Only simple string data conversion is done in this case
+
 
 ## Usage
 - Make sure you can use an admin user on Jira
