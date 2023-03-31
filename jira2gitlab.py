@@ -500,7 +500,7 @@ def migrate_project(jira_project, gitlab_project):
         # Epic name to label
         if JIRA_EPIC_FIELD in issue['fields'] and issue['fields'][JIRA_EPIC_FIELD]:
             epic_info = requests.get(
-                f"{JIRA_API}/issue/{issue['fields'][JIRA_EPIC_FIELD]}/?fields=summary",
+                f"{JIRA_API}/issue/{issue['fields'][JIRA_EPIC_FIELD]['id']}/?fields=summary",
                 auth = HTTPBasicAuth(*JIRA_ACCOUNT),
                 verify = VERIFY_SSL_CERTIFICATE,
                 headers = {'Content-Type': 'application/json'}
