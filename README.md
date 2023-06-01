@@ -16,7 +16,7 @@ Important: this script is meant to work with Jira Server and is NOT compatible w
 
 Tested with:
 - Jira Server 8.5.1
-- Gitlab Self-Managed 14.10.2-ee
+- Gitlab Self-Managed 15.11.4-ee
 
 ## Features:
 - Original title, extended with Jira issue key (Optional)
