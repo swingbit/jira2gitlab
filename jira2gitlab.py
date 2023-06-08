@@ -20,6 +20,7 @@ import urllib.parse
 import hashlib
 from typing import Dict, Any
 
+from label_colors import create_or_update_label_colors
 from jira2gitlab_secrets import *
 from jira2gitlab_config import *
 
@@ -912,6 +913,7 @@ try:
     for jira_project, gitlab_project in PROJECTS.items():
         print(f"\n\nMigrating {jira_project} to {gitlab_project}")
         migrate_project(jira_project, gitlab_project)
+        create_or_update_label_colors(gitlab_project)
 
     # Map issue links
     print("\nProcessing links")

@@ -180,3 +180,12 @@ ISSUE_STATUS_MAP = {
 ISSUE_STATUS_CLOSED = {
   'Awaiting documentation',
 }
+
+# Set colors for single labels or group of labels
+LABEL_COLORS = {
+#    'S::in review': '#0000ff'
+}
+# for key, value in ISSUE_COMPONENT_MAP.items():
+#     LABEL_COLORS[value] = '#e6e6fa'
+# for key, value in ISSUE_PRIORITY_MAP.items():
+#     LABEL_COLORS[value] = '#8fbc8f'
