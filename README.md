@@ -22,7 +22,7 @@ Tested with:
 - Original title, extended with Jira issue key (Optional)
 - Original description, extended with link to Jira issue
 - Original comments
-- Original labels
+- Original labels (optionally assign label colors)
 - (Optional) Original attachments
 - (Optional) Original worklogs, as comment + `/spend` quick-action
 - (Optional) Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
