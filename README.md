@@ -22,11 +22,12 @@ Tested with:
 - Original title, extended with Jira issue key (Optional)
 - Original description, extended with link to Jira issue
 - Original comments
-- Original labels (optionally assign label colors)
+- Original labels
 - (Optional) Original attachments
 - (Optional) Original worklogs, as comment + `/spend` quick-action
 - (Optional) Issue references in commits from a linked Bitbucket Server are translated to Gitlab issue references
 - (Optional) Jira projects may have custom fields configured. At the moment of writing (2023/02/08) there's a [long-running feature request](https://gitlab.com/gitlab-org/gitlab/-/issues/1906) for this functionality on Gitlab, but it hasn't been implemented. You can configure to perform a simple import of this kind of metadata to gitlab issue in a form of a comment with a table that lists all this info. Only simple string data conversion is done in this case
+- (Optional) Assign colors to all labels created in Gitlab
 - Jira comment syntax translated to markdown, including tables
 - Jira components are translated to labels
 - Jira priority is translated to labels
