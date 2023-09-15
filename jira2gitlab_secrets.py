@@ -1,7 +1,6 @@
-JIRA_USERNAME="jira_admin"
-JIRA_PASSWORD="password123"
+JIRA_USERNAME = "jira_admin"
+JIRA_PASSWORD = "password123"
 JIRA_ACCOUNT = (JIRA_USERNAME, JIRA_PASSWORD)
 
-GITLAB_TOKEN="01234567890123456789"
-GITLAB_ADMIN="root"  # This must be an admin account
-
+GITLAB_TOKEN = "01234567890123456789"
+GITLAB_ADMIN = "root"  # This must be an admin account
