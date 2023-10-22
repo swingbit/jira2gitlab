@@ -7,10 +7,10 @@ JIRA_API = f'{JIRA_URL}/rest/api/2'
 
 # Bitbucket URL, if available, is only used in pattern-matching
 # to translate issue references to commits.
-BITBUCKET_URL = "https://bitbucket.example.com"
+BITBUCKET_URL = 'https://bitbucket.example.com'
 
 # How many items to request at a time from Jira (usually not more than 1000)
-JIRA_PAGINATION_SIZE=100
+JIRA_PAGINATION_SIZE = 100
 
 # the Jira Epic custom field
 JIRA_EPIC_FIELD = 'customfield_10103'
@@ -41,18 +41,21 @@ GITLAB_PREMIUM = True
 # Import options
 ################################################################
 
-# set this to false if JIRA / Gitlab is using self-signed certificate.
+# Name of the file storing the status of imports
+IMPORT_STATUS_FILENAME = 'import_status.pickle'
+
+# Set this to false if JIRA / Gitlab is using self-signed certificate.
 VERIFY_SSL_CERTIFICATE = False
 
 # PREFIX_LABEL is used with all existing Jira labels
-PREFIX_LABEL = ""
+PREFIX_LABEL = ''
 
 # PREFIX_COMPONENT is used with existing Jira components when no match is found in ISSUE_COMPONENT_MAP
 # NOTE: better NOT to use a prefix for components, otherwise only 1 component will be imported in Gitlab
-PREFIX_COMPONENT = ""
+PREFIX_COMPONENT = ''
 
 # PREFIX_PRIORITY is used with existing Jira priorities when no match is found in ISSUE_PRIORITY_MAP
-PREFIX_PRIORITY = "P::"
+PREFIX_PRIORITY = 'P::'
 
 # Whether to migrate issue attachments
 MIGRATE_ATTACHMENTS = True
@@ -60,7 +63,7 @@ MIGRATE_ATTACHMENTS = True
 # Whether to migrate worklogs as issue comment with /spend quick-action.
 MIGRATE_WORLOGS = True
 
-# Jira users are mapped to Gitlab users according to USER_MAP, with the following two exceptios:
+# Jira users are mapped to Gitlab users according to USER_MAP, with the following two exceptions:
 # - Jira user 'jira' is mapped to Gitlab user 'root'
 # - Jira users that are not in USER_MAP are mapped to Gitlab user 'root'
 # If MIGRATE_USERS is True, mapped Gitlab users that don't exist yet in Gitlab will be migrated automatically
@@ -69,9 +72,9 @@ MIGRATE_USERS = False
 
 # When MIGRATE_USERS is True, new users can be created in Gitlab.
 # This is the *temporary* password they get.
-NEW_GITLAB_USERS_PASSWORD = "changeMe"
+NEW_GITLAB_USERS_PASSWORD = 'changeMe'
 
-# If (new or exisiting) Gitlab users are not made admins during the import,
+# If (new or existing) Gitlab users are not made admins during the import,
 # the original timestamps of all user actions cannot be imported. Instead, the timestamp of the import will be used.
 # When this option is enabled, users are made admin and changed back to their original role after the import. 
 # If users cannot be changed back to non-admin, this is reported at the end of the import.
@@ -81,7 +84,7 @@ MAKE_USERS_TEMPORARILY_ADMINS = True
 # Prefix issue titles with "[PROJ-123]" (Jira issue-key)
 ADD_JIRA_KEY_TO_TITLE = True
 
-# If REFERECE_BITBUCKET_COMMITS is enabled, tries to translate Jira issue references in Bitbucket to Gitlab issue references
+# REFERECE_BITBUCKET_COMMITS = True -> tries to translate Jira issue references in Bitbucket to Gitlab issue references
 # Disable if the Jira instance does not have an active link to Bitbucket at the moment of the import
 # Disable if not needed, to increase performance (more calls are needed for each issue)
 # Limitations:

@@ -1,23 +1,24 @@
 #!/usr/bin/python
- 
+
 # Improved upon https://gist.github.com/Gwerlas/980141404bccfa0b0c1d49f580c2d494
 
 # Jira API documentation : https://docs.atlassian.com/software/jira/docs/api/REST/8.5.1/
 # Gitlab API documentation: https://docs.gitlab.com/ee/api/README.html
 
+import re
 import sys
+import uuid
+import json
+import pickle
+import hashlib
+import urllib3
+import urllib.parse
 import traceback
 import signal
 import requests
 from requests.auth import HTTPBasicAuth
-import pickle
-import re
 from io import BytesIO
-import json
-import uuid
-import urllib3
-import urllib.parse
-import hashlib
+from pathlib import Path
 from typing import Dict, Any
 
 from label_colors import create_or_update_label_colors
@@ -49,7 +50,7 @@ def dict_hash(dictionary: Dict[str, Any]) -> str:
 
 # Remove unstable data from a Jira issue
 # Unstable data is data that changes even though the issue has not been changed
-def jira_issue_remove_unstable_data(issue):
+def jira_issue_remove_unstable_data(issue: dict):
     for field in ['lastViewed', 'customfield_10300']:
         if field in issue['fields']:
             issue['fields'][field] = ''
@@ -164,7 +165,7 @@ def jira_text_2_gitlab_markdown(jira_project, text, adict):
 # Migrate a list of attachments
 # We use UUID in place of the filename to prevent 500 errors on unicode chars
 # The attachments need to be explicitly mentioned to be visible in Gitlab issues
-def move_attachements(attachments, gitlab_project_id):
+def move_attachments(attachments, gitlab_project_id):
     replacements = {}
     for attachment in attachments:
         author = 'jira' # if user is not valid, use root
@@ -289,16 +290,16 @@ def resolve_login(jira_username):
             return migrate_user(jira_username)
     
         # Not allowed to migrate the user, log it
-        if (gl_username in gl_users_not_migrated): 
+        if gl_username in gl_users_not_migrated:
             gl_users_not_migrated[gl_username] += 1
-        else: 
+        else:
             gl_users_not_migrated[gl_username] = 1
         return gl_users[GITLAB_ADMIN]
 
     # No mapping found, log jira user
-    if (jira_username in jira_users_not_mapped): 
+    if jira_username in jira_users_not_mapped:
         jira_users_not_mapped[jira_username] += 1
-    else: 
+    else:
         jira_users_not_mapped[jira_username] = 1
     return gl_users[GITLAB_ADMIN]
 
@@ -351,7 +352,7 @@ def migrate_user(jira_username):
 def create_gl_project(gitlab_project):
     print(f"\n[INFO] Creating Gitlab project {gitlab_project}")
 
-    [ namespace, project ] = gitlab_project.rsplit('/',1)
+    [namespace, project] = gitlab_project.rsplit('/',1)
     if namespace in gl_namespaces:
         namespace_id = gl_namespaces[namespace]['id']
     else:
@@ -384,7 +385,7 @@ def migrate_project(jira_project, gitlab_project):
         )
         project.raise_for_status()
         gitlab_project_id = project.json()['id']
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException:
         gitlab_project_id = create_gl_project(gitlab_project)
 
     # Load the Gitlab project's milestone list (empty for a new import)
@@ -404,7 +405,9 @@ def migrate_project(jira_project, gitlab_project):
     start_at = 0
     jira_issues = []
     while True:
-        query = f'{JIRA_API}/search?jql=project="{jira_project}" ORDER BY key&fields=*navigable,attachment,comment,worklog&maxResults={str(JIRA_PAGINATION_SIZE)}&startAt={start_at}'
+        query = (f'{JIRA_API}/search?jql=project="{jira_project}" '
+                 f'ORDER BY key&fields=*navigable,attachment,comment,'
+                 f'worklog&maxResults={str(JIRA_PAGINATION_SIZE)}&startAt={start_at}')
         try:
             jira_issues_batch = requests.get(
                 query,
@@ -519,7 +522,7 @@ def migrate_project(jira_project, gitlab_project):
         for link in issue['fields']['issuelinks']:
             if 'outwardIssue' in link:
                 import_status['links_todo'].add( (issue['key'], link['type']['outward'], link['outwardIssue']['key']) )
-        
+
         # There is no sub-task equivalent in Gitlab
         # Use a (sub-task, blocks, task) link instead
         for subtask in issue['fields']['subtasks']:
@@ -527,7 +530,7 @@ def migrate_project(jira_project, gitlab_project):
 
         # Migrate attachments and get replacements for comments pointing at them
         if MIGRATE_ATTACHMENTS:
-            replacements = move_attachements(issue['fields']['attachment'], gitlab_project_id)
+            replacements = move_attachments(issue['fields']['attachment'], gitlab_project_id)
 
         # Create Gitlab issue
         # Add a link to the Jira issue and mention all attachments in the description
@@ -551,7 +554,7 @@ def migrate_project(jira_project, gitlab_project):
             gl_title += f"{issue['fields']['summary']}"
             original_title = ""
 
-            if (len(gl_title) > 255):
+            if len(gl_title) > 255:
                 # add full original title as a comment later on
                 original_title = f"Full original title:\n\n{gl_title}\n\n"
                 gl_title = gl_title[:252] + '...'
@@ -670,7 +673,7 @@ def migrate_project(jira_project, gitlab_project):
                 )
                 devel_info.raise_for_status()
                 devel_info = devel_info.json()
-                
+
                 for detail in devel_info['detail']:
                     for repository in detail['repositories']:
                         for commit in repository['commits']:
@@ -729,7 +732,7 @@ def process_links():
         if not (j_from in import_status['issue_mapping'] and j_to in import_status['issue_mapping']):
             print(f"\n[WARN]: Skipping {j_from} {j_type} {j_to}, at least one of the Gitlab issues was not imported")
             continue
-        
+
         gl_from = import_status['issue_mapping'][j_from][0]
         gl_to = import_status['issue_mapping'][j_to][0]
 
@@ -773,7 +776,7 @@ def process_links():
                     note_add.raise_for_status()
                 except requests.exceptions.RequestException as e:
                     print(f"[WARN] Unable to create Gitlab issue link: {gl_from} {gl_type} {gl_to}\n{e}")
-                
+
                 import_status['links_todo'].remove((j_from, j_type, j_to))
             elif j_type == 'clones':
                 # No need to perform the cloning, as the cloned issue is already imported.
@@ -804,7 +807,7 @@ def load_import_status():
 
 ################################################################
 # Main body
-# ################################################################
+################################################################
 
 # Users that were made admin during the import need to be changed back
 def reset_user_privileges():
@@ -828,7 +831,7 @@ def final_report():
         print("IMPORTANT: The following users should be revoked the admin status manually:")
         print(f"{json.dumps(import_status['gl_users_made_admin'], default=json_encoder, indent=4)}\n")
 
-class SigIntException(Exception): 
+class SigIntException(Exception):
     pass
 
 def wrapup():
@@ -844,12 +847,12 @@ def wrapup():
     try:
         reset_user_privileges()
     except Exception as e:
-        print(f"\n[ERROR] Could not reset priviledges: {e}\n")
+        print(f"\n[ERROR] Could not reset privileges: {e}\n")
 
     store_import_status()
-    
+
     final_report()
-    
+
     if not IMPORT_SUCCEEDED:
         exit(1)
 
@@ -866,59 +869,66 @@ BITBUCKET_COMMIT_PATTERN = ""
 if REFERECE_BITBUCKET_COMMITS and BITBUCKET_URL:
     BITBUCKET_COMMIT_PATTERN = re.compile(fr"^{BITBUCKET_URL}/projects/([^/]+)/repos/([^/]+)/commits/\w+$")
 
-# Get available Gitlab namespaces
-gl_namespaces = dict()
-page = 1
-while True:
-    rq = requests.get(
-        f'{GITLAB_API}/namespaces?page={str(page)}',
-        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
-        verify = VERIFY_SSL_CERTIFICATE
-    )
-    rq.raise_for_status()
-    for gl_namespace in rq.json():
-        gl_namespaces[gl_namespace['full_path']] = gl_namespace
-    if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
-        page = rq.headers["x-next-page"] 
-    else:
-        break
+if __name__ == "__main__":
+    if Path(IMPORT_STATUS_FILENAME).exists():
+        continue_pickle = input("Pickle file exists, continue? (y/n)\n")
+        while True:
+            if continue_pickle in "nN":
+                sys.exit(1)
 
-# Get available Gitlab users
-gl_users = dict()
-page = 1
-while True:
-    rq = requests.get(
-        f'{GITLAB_API}/users?page={str(page)}', 
-        headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
-        verify = VERIFY_SSL_CERTIFICATE
-    )
-    rq.raise_for_status()
-    for gl_user in rq.json():
-        gl_users[gl_user['username']] = gl_user
-    if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
-        page = rq.headers["x-next-page"] 
-    else:
-        break
+    # Get available Gitlab namespaces
+    gl_namespaces = dict()
+    page = 1
+    while True:
+        rq = requests.get(
+            f'{GITLAB_API}/namespaces?page={str(page)}',
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE
+        )
+        rq.raise_for_status()
+        for gl_namespace in rq.json():
+            gl_namespaces[gl_namespace['full_path']] = gl_namespace
+        if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
+            page = rq.headers["x-next-page"] 
+        else:
+            break
 
-# Jira users that could not be mapped to Gitlab users
-jira_users_not_mapped = dict()
-# Gitlab users that were mapped to, but could not be migrated
-gl_users_not_migrated = dict()
+    # Get available Gitlab users
+    gl_users = dict()
+    page = 1
+    while True:
+        rq = requests.get(
+            f'{GITLAB_API}/users?page={str(page)}', 
+            headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
+            verify = VERIFY_SSL_CERTIFICATE
+        )
+        rq.raise_for_status()
+        for gl_user in rq.json():
+            gl_users[gl_user['username']] = gl_user
+        if (rq.headers["x-page"] != rq.headers["x-total-pages"]):
+            page = rq.headers["x-next-page"] 
+        else:
+            break
 
-# Load previous import status
-import_status = load_import_status()
+    # Jira users that could not be mapped to Gitlab users
+    jira_users_not_mapped = dict()
+    # Gitlab users that were mapped to, but could not be migrated
+    gl_users_not_migrated = dict()
 
-try:
-    # Migrate projects
-    for jira_project, gitlab_project in PROJECTS.items():
-        print(f"\n\nMigrating {jira_project} to {gitlab_project}")
-        migrate_project(jira_project, gitlab_project)
-        create_or_update_label_colors(gitlab_project)
+    # Load previous import status
+    import_status = load_import_status()
 
-    # Map issue links
-    print("\nProcessing links")
-    process_links()
+    try:
+        # Migrate projects
+        for jira_project, gitlab_project in PROJECTS.items():
+            print(f"\n\nMigrating {jira_project} to {gitlab_project}")
+            migrate_project(jira_project, gitlab_project)
+            create_or_update_label_colors(gitlab_project)
 
-    IMPORT_SUCCEEDED = True
-finally:
-    wrapup()
+        # Map issue links
+        print("\nProcessing links")
+        process_links()
+
+        IMPORT_SUCCEEDED = True
+    finally:
+        wrapup()

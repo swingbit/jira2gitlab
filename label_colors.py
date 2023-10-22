@@ -20,7 +20,7 @@ def get_labels(project_id):
     while True:
         next_labels = requests.get(
             f'{GITLAB_API}/projects/{project_id}/labels',
-            params={"per_page": 100, "page": page},
+            params = {"per_page": 100, "page": page},
             headers = {'PRIVATE-TOKEN': GITLAB_TOKEN},
             verify = VERIFY_SSL_CERTIFICATE,
         ).json()
