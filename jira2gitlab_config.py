@@ -95,6 +95,12 @@ REFERECE_BITBUCKET_COMMITS = True
 # Try force converting broken jira tables (tables that have no headers)
 FORCE_REPAIR_JIRA_TABLES = False
 
+# Set this to True if you want to keep original attachments filenames.
+# Diacritics are removed, but no full normalisation to ASCII is performed.
+# Therefore this may cause 500 errors on some unicode characters.
+# When set to False, filenames are replaced with UUIDs.
+KEEP_ORIGINAL_ATTACHMENT_FILENAMES = False
+
 ################################################################
 # Import mappings
 ################################################################

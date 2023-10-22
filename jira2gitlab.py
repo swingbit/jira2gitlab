@@ -13,6 +13,7 @@ import pickle
 import hashlib
 import urllib3
 import urllib.parse
+import unicodedata
 import traceback
 import signal
 import requests
@@ -197,6 +198,13 @@ def move_attachments(attachments, gitlab_project_id):
         if 'author' in attachment:
             author = attachment['author']['name']
 
+        clean_filename = ""
+        if KEEP_ORIGINAL_ATTACHMENT_FILENAMES:
+            filename = attachment["filename"]
+            # Try to clean up some unicode characters by stripping accents
+            n_chars = (c for c in unicodedata.normalize("NFD", filename) if unicodedata.category(c) != "Mn")
+            clean_filename = "".join(n_chars)
+
         _file = requests.get(
             attachment['content'],
             auth = HTTPBasicAuth(*JIRA_ACCOUNT),
@@ -208,15 +216,13 @@ def move_attachments(attachments, gitlab_project_id):
 
         _content = BytesIO(_file.content)
 
+        file_data = (clean_filename, _content) if KEEP_ORIGINAL_ATTACHMENT_FILENAMES \
+            else (str(uuid.uuid4()), _content)  # Use a UUID as file name
+
         file_info = requests.post(
             f'{GITLAB_API}/projects/{gitlab_project_id}/uploads',
             headers = {'PRIVATE-TOKEN': GITLAB_TOKEN,'Sudo': resolve_login(author)['username']},
-            files = {
-                'file': (
-                    str(uuid.uuid4()),
-                    _content
-                )
-            },
+            files = {'file': file_data},
             verify = VERIFY_SSL_CERTIFICATE
         )
         del _content
@@ -229,7 +235,10 @@ def move_attachments(attachments, gitlab_project_id):
 
         # Add this to replacements for comments mentioning these attachments
         key = rf"!{re.escape(attachment['filename'])}[^!]*!"
-        value = rf"![{attachment['filename']}]({file_info['url']})"
+        # Use full path to avoid problems for epics/issues
+        full_file_path = f"{GITLAB_URL}{file_info['full_path']}"
+        value = rf"![{attachment['filename']}]({full_file_path})"
+
         replacements[key] = value
     return replacements
 
