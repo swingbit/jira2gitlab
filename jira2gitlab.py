@@ -65,16 +65,16 @@ def jira_table_to_markdown(text):
     while i < l:
         j = 0
         if lines[i] and lines[i][0] == '|':
-        while i+j < l-1 and lines[i][-1] != '|' :
-            j = j + 1
-            lines[i] = lines[i] + '<br>' + lines[i+j]
-        if i+j == l-1:
-            # We reached the end without finding a closing '|'. 
-            # Someting is wrong, we abort.
-            if not FORCE_REPAIR_JIRA_TABLES:
-                return text
-        for k in range(j):
-            lines[i+1+k] = None
+            while i+j < l-1 and lines[i][-1] != '|' :
+                j = j + 1
+                lines[i] = lines[i] + '<br>' + lines[i+j]
+            if i+j == l-1:
+                # We reached the end without finding a closing '|'. 
+                # Someting is wrong, we abort.
+                if not FORCE_REPAIR_JIRA_TABLES:
+                    return text
+            for k in range(j):
+                lines[i+1+k] = None
         i = i + j + 1
 
     lines = list(filter(None, lines))
@@ -89,10 +89,10 @@ def jira_table_to_markdown(text):
             p = 0
             for c in lines[i]:
                 if c == '|':
-                p += 1
-                if p == 2:
-                    pp += 1
-                    p = 0
+                    p += 1
+                    if p == 2:
+                        pp += 1
+                        p = 0
             sep = '\n' + '| --- ' * (pp - 1) + '|'
             lines[i] = re.sub(r'\|\|', r'|', lines[i]) + sep
 
