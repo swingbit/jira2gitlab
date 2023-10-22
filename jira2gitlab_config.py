@@ -92,6 +92,9 @@ ADD_JIRA_KEY_TO_TITLE = True
 # - This feature only works if the issue project and the commit project are in the same Gitlab group
 REFERECE_BITBUCKET_COMMITS = True
 
+# Try force converting broken jira tables (tables that have no headers)
+FORCE_REPAIR_JIRA_TABLES = False
+
 ################################################################
 # Import mappings
 ################################################################

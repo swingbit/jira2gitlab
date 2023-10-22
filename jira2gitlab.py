@@ -58,41 +58,66 @@ def jira_issue_remove_unstable_data(issue: dict):
 
 # Convert Jira tables to markdown
 def jira_table_to_markdown(text):
-  lines = text.splitlines()
-  # turn in-cell newlines into <br> and reconcatenate mistakenly broken rows
-  i = 0
-  l = len(lines)
-  while i < l:
-    j = 0
-    if lines[i] and lines[i][0]=='|':
-      while i+j < l-1 and lines[i][-1] != '|' :
-        j = j + 1
-        lines[i] = lines[i] + '<br>' + lines[i+j]
-      if i+j == l-1:
-        # We reached the end without finding a closing '|'. 
-        # Someting is wrong, we abort.
-        return text
-      for k in range(j):
-        lines[i+1+k] = None
-    i = i + j + 1
+    lines = text.splitlines()
+    # turn in-cell newlines into <br> and reconcatenate mistakenly broken rows
+    i = 0
+    l = len(lines)
+    while i < l:
+        j = 0
+        if lines[i] and lines[i][0] == '|':
+        while i+j < l-1 and lines[i][-1] != '|' :
+            j = j + 1
+            lines[i] = lines[i] + '<br>' + lines[i+j]
+        if i+j == l-1:
+            # We reached the end without finding a closing '|'. 
+            # Someting is wrong, we abort.
+            if not FORCE_REPAIR_JIRA_TABLES:
+                return text
+        for k in range(j):
+            lines[i+1+k] = None
+        i = i + j + 1
 
-  lines = list(filter(None, lines))
+    lines = list(filter(None, lines))
+    found_table = False
 
-  # Change the ||-delimited header in to |-delimited
-  # and insert | --- | separator line
-  for i in range(len(lines)):
-    if lines[i] and lines[i][:2]=='||' and lines[i][-2:]=='||':
-      pp = 0
-      p = 0
-      for c in lines[i]:
-        if c == '|':
-          p = p + 1
-          if p == 2:
-            pp = pp + 1
+    # Change the ||-delimited header in to |-delimited
+    # and insert | --- | separator line
+    for i in range(len(lines)):
+        if lines[i] and lines[i][:2] == '||' and lines[i][-2:] == '||':
+            found_table = True
+            pp = 0
             p = 0
-      sep = '\n' + '| --- ' * (pp - 1) + '|'
-      lines[i] = re.sub(r'\|\|', r'|', lines[i]) + sep
-  return '\n'.join(lines)
+            for c in lines[i]:
+                if c == '|':
+                p += 1
+                if p == 2:
+                    pp += 1
+                    p = 0
+            sep = '\n' + '| --- ' * (pp - 1) + '|'
+            lines[i] = re.sub(r'\|\|', r'|', lines[i]) + sep
+
+    # Try force repairing the broken table
+    if FORCE_REPAIR_JIRA_TABLES and not found_table:
+        l = len(lines)
+        pp = 0
+        found_broken_table = False
+        for i in range(l):
+            if lines[i] and lines[i][:1] == '|' and lines[i][-1:] == '|':
+                found_broken_table = True
+                pp = 0
+                p = 0
+                for c in lines[i]:
+                    if c == '|':
+                        p += 1
+                        if p == 2:
+                            pp += 1
+                            p = 0
+                break
+        if found_broken_table:
+            sep = '\n' + '| --- ' * (pp * 2 - 1) + '|'
+            lines[i] = re.sub(r'\|\|', r'|', lines[i]) + sep
+
+    return '\n'.join(lines)
 
 
 # Gitlab markdown : https://docs.gitlab.com/ee/user/markdown.html
