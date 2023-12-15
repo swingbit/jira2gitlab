@@ -906,9 +906,8 @@ if REFERECE_BITBUCKET_COMMITS and BITBUCKET_URL:
 if __name__ == "__main__":
     if Path(IMPORT_STATUS_FILENAME).exists():
         continue_pickle = input("Pickle file exists, continue? (y/n)\n")
-        while True:
-            if continue_pickle in "nN":
-                sys.exit(1)
+        if continue_pickle in "nN":
+            sys.exit(1)
 
     # Get available Gitlab namespaces
     gl_namespaces = dict()
