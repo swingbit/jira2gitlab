@@ -563,7 +563,7 @@ def migrate_project(jira_project, gitlab_project):
             import_status['links_todo'].add( (subtask['key'], "blocks", issue['key']) )
 
         # Migrate attachments and get replacements for comments pointing at them
-        if MIGRATE_ATTACHMENTS:
+        if MIGRATE_ATTACHMENTS and 'attachment' in issue['fields']:
             replacements = move_attachments(issue['fields']['attachment'], gitlab_project_id)
 
         # Create Gitlab issue
