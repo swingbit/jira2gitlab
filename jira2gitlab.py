@@ -650,7 +650,7 @@ def migrate_project(jira_project, gitlab_project):
             # migrate custom fields
             custom_fields_comment = ''
             for key, desc in JIRA_CUSTOM_FIELDS.items():
-                if issue['fields'][key]:
+                if key in issue['fields'] and issue['fields'][key]:
                     field_value = str(issue['fields'][key]).replace('\n', "<br>")
                     custom_fields_comment += f'| {desc} | {field_value} |\n'
 
